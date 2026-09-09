@@ -6281,10 +6281,10 @@
         setTimeout(() => b.remove(), 700);
       }
     }
-    // Metallic clang for rocks
+    // Metallic clang for rocks (LOUD)
     function playClangSound() {
-      playBeep(620, 'square', 0.06);
-      setTimeout(() => playBeep(410, 'square', 0.09), 60);
+      loudBlip(620, 'square', 0.06, 0.2, 0);
+      loudBlip(410, 'square', 0.1, 0.22, 0.06);
     }
     /* Shared stone chips: anyone walking over grabs the pile */
     const stoneDrops = [];
@@ -6811,10 +6811,27 @@
       }
       return drop;
     }
-    // Wooden knock sound
+    // Wooden knock sound (LOUD woody thunk, dedicated circuit)
+    function loudBlip(freq, type, dur, vol, delay) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const t0 = audioCtx.currentTime + (delay || 0);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t0);
+        gain.gain.setValueAtTime(vol, t0);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur);
+      } catch (e) {}
+    }
     function playKnockSound() {
-      playBeep(170, 'triangle', 0.09);
-      setTimeout(() => playBeep(110, 'triangle', 0.12), 80);
+      loudBlip(150, 'square', 0.07, 0.22, 0);
+      loudBlip(95, 'triangle', 0.14, 0.25, 0.07);
     }
     // Chip splash burst on hit
     function woodChipBurst(x, y) {
