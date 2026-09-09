@@ -6888,6 +6888,16 @@
       swingAudio = null;
       gushAudio = null;
     }
+    // Wood chop sample (freesound.org, CC0) + synth fallback
+    let chopAudio = null;
+    try {
+      chopAudio = new Audio('sounds/chop.mp3');
+      chopAudio.preload = 'auto';
+      chopAudio.volume = 0.9;
+      chopAudio.addEventListener('error', () => { chopAudio = null; });
+    } catch (e) {
+      chopAudio = null;
+    }
     function playSwingSound() {
       if (!swingAudio) return;
       try {
