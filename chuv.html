@@ -3978,32 +3978,52 @@
     const flyer1 = document.getElementById('flyer1');
     const flyer2 = document.getElementById('flyer2');
 
-    // ROBOT 🤖 SVG SPRITE
+    // FISH-KID 🐟 PIXEL SPRITE (lake transformation reward)
     const robotSvgContent = `
       <svg viewBox="0 0 36 36" width="100%" height="100%">
-        <!-- Antenna -->
-        <line x1="18" y1="2" x2="18" y2="8" stroke="#00ffcc" stroke-width="2"/>
-        <circle cx="18" cy="2" r="2.5" fill="#ff0055"/>
+        <line x1="15" y1="2" x2="15" y2="6" stroke="#f472b6" stroke-width="2"/>
+        <!-- Neck -->
+        <rect x="15" y="18" width="6" height="6" fill="#4caf7d" stroke="#123524" stroke-width="1"/>
+        <!-- Side fin ears -->
+        <polygon points="9,12 5,9 6,15" fill="#3a9e6b" stroke="#123524" stroke-width="1"/>
+        <polygon points="27,12 31,9 30,15" fill="#3a9e6b" stroke="#123524" stroke-width="1"/>
         <!-- Head -->
-        <rect x="8" y="8" width="20" height="13" fill="#64748b" stroke="#0f172a" stroke-width="1.5" rx="2"/>
-        <!-- Visor / Eyes -->
-        <rect x="11" y="11" width="14" height="5" fill="#0f172a" rx="1"/>
-        <circle cx="14" cy="13.5" r="1.8" fill="#00ffcc"/>
-        <circle cx="22" cy="13.5" r="1.8" fill="#00ffcc"/>
-        <circle cx="14.5" cy="13" r="0.6" fill="#fff"/>
-        <circle cx="22.5" cy="13" r="0.6" fill="#fff"/>
-        <!-- Mouth Grille -->
-        <line x1="13" y1="18" x2="23" y2="18" stroke="#334155" stroke-width="1.5" stroke-dasharray="2,1"/>
-        <!-- Body -->
-        <rect x="9" y="22" width="18" height="10" fill="#475569" stroke="#0f172a" stroke-width="1.5" rx="2"/>
-        <!-- Chest Reactor Core -->
-        <circle cx="18" cy="27" r="2.5" fill="#00ffcc" stroke="#0f172a" stroke-width="1"/>
+        <rect x="9" y="4" width="18" height="16" rx="5" fill="#5fc993" stroke="#123524" stroke-width="1.5"/>
+        <!-- Hair cap -->
+        <rect x="9" y="4" width="18" height="5" rx="2.5" fill="#2e8b57"/>
+        <rect x="13" y="6" width="3" height="2" fill="#3a9e6b"/>
+        <!-- Pink bow -->
+        <polygon points="27,4 31,0 31,7" fill="#f472b6" stroke="#9d2463" stroke-width="1"/>
+        <polygon points="27,4 32,4 29,8" fill="#f9a8d4" stroke="#9d2463" stroke-width="1"/>
+        <circle cx="27.5" cy="4.5" r="1.5" fill="#e0247a"/>
+        <!-- Left eye open -->
+        <rect x="12" y="9" width="5" height="6" rx="1" fill="#ffffff" stroke="#123524" stroke-width="1"/>
+        <rect x="13.5" y="11" width="2.5" height="3" fill="#f59e0b"/>
+        <rect x="14" y="12" width="1" height="2" fill="#111111"/>
+        <!-- Right eye wink -->
+        <rect x="21" y="11" width="4" height="1.6" fill="#123524"/>
+        <!-- Nostrils -->
+        <rect x="15" y="16" width="1.2" height="1.2" fill="#123524"/>
+        <rect x="19" y="16" width="1.2" height="1.2" fill="#123524"/>
+        <!-- Big red smile -->
+        <path d="M12 18 Q18 23 24 18" stroke="#e11d48" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <!-- Hoodie body -->
+        <rect x="9" y="23" width="18" height="9" rx="2" fill="#1f2a44" stroke="#0b1020" stroke-width="1.5"/>
+        <line x1="18" y1="23" x2="18" y2="32" stroke="#0b1020" stroke-width="1"/>
+        <rect x="17" y="24" width="2" height="3" fill="#e11d48"/>
+        <!-- Red/cream sash -->
+        <polygon points="10,32 16,24 19,24 13,32" fill="#e11d48"/>
+        <polygon points="13,32 19,24 21,24 15,32" fill="#f5e6c8"/>
+        <!-- Yellow fish emblem -->
+        <ellipse cx="23.5" cy="28" rx="2.2" ry="1.6" fill="#fbbf24"/>
+        <polygon points="21.5,28 19.8,26.8 19.8,29.2" fill="#fbbf24"/>
+        <circle cx="24" cy="27.6" r="0.5" fill="#111111"/>
         <!-- Arms -->
-        <rect x="5" y="23" width="3" height="7" fill="#64748b" rx="1"/>
-        <rect x="28" y="23" width="3" height="7" fill="#64748b" rx="1"/>
+        <rect x="6" y="24" width="3" height="7" rx="1" fill="#1f2a44" stroke="#0b1020" stroke-width="1"/>
+        <rect x="27" y="24" width="3" height="7" rx="1" fill="#1f2a44" stroke="#0b1020" stroke-width="1"/>
         <!-- Legs -->
-        <rect x="11" y="32" width="4" height="4" fill="#1e293b"/>
-        <rect x="21" y="32" width="4" height="4" fill="#1e293b"/>
+        <rect x="11" y="32" width="4" height="4" fill="#141b2e"/>
+        <rect x="21" y="32" width="4" height="4" fill="#141b2e"/>
       </svg>
     `;
 
@@ -4247,7 +4267,7 @@
       if (flyer2) flyer2.innerHTML = ufo2SvgContent;
 
       // Update Header Title silently
-      if (uiTitleLabel) uiTitleLabel.textContent = "🤖 ROBOT WORLD";
+      if (uiTitleLabel) uiTitleLabel.textContent = "🐟 FISH-KID WORLD";
 
       // Increment score bonus
       score += 10;
@@ -4801,10 +4821,8 @@
       activeCallback = null;
 
       createTapMarker(targetX, targetY);
-      // No squeak on double-click: second rapid tap stays silent
-      const nowTap = Date.now();
-      if (!lastTapAt || nowTap - lastTapAt > 350) playBeep(650, 'sine', 0.04);
-      lastTapAt = nowTap;
+      // Mouse ground clicks stay silent (no tap beep)
+      lastTapAt = Date.now();
 
       if (!isMoving) {
         isMoving = true;
@@ -5132,7 +5150,7 @@
       isHitting = true;
       player.classList.remove('sitting');
       player.classList.add('hitting');
-      playHitSound();
+      // Silent swing: sounds only play on real results (rock/wood/oil/squirrel)
       const hitX = posX;
       const hitY = posY;
       setTimeout(() => {
@@ -5154,6 +5172,7 @@
             score += 5;
             if (coinCounter) coinCounter.textContent = `🪙 ${score}`;
             showSpeechBubble('Oil! 🛢️', 2200);
+            playGushSound();
           }
         } else {
           // Paws: squirrels + visible feedback on trees/rocks (no loot without pickaxe)
@@ -5354,7 +5373,9 @@
       if (e.code === 'Space' || e.code === 'KeyE') {
         const tag = (document.activeElement && document.activeElement.tagName) || '';
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        if (e.repeat) return;
         e.preventDefault();
+        playSwingSound();
         doOilHit();
       }
     });
@@ -6854,14 +6875,34 @@
         osc.stop(t0 + dur);
       } catch (e) {}
     }
-    // Wood chop sample (freesound.org, CC0) + synth fallback
-    let chopAudio = null;
+    // Swing + gush samples (freesound.org, CC0)
+    let swingAudio = null, gushAudio = null;
     try {
-      chopAudio = new Audio('sounds/chop.mp3');
-      chopAudio.preload = 'auto';
-      chopAudio.volume = 0.9;
+      swingAudio = new Audio('sounds/swing.mp3');
+      swingAudio.preload = 'auto';
+      swingAudio.volume = 0.9;
+      gushAudio = new Audio('sounds/gush.mp3');
+      gushAudio.preload = 'auto';
+      gushAudio.volume = 0.55;
     } catch (e) {
-      chopAudio = null;
+      swingAudio = null;
+      gushAudio = null;
+    }
+    function playSwingSound() {
+      if (!swingAudio) return;
+      try {
+        swingAudio.currentTime = 0;
+        const pr = swingAudio.play();
+        if (pr && pr.catch) pr.catch(() => {});
+      } catch (e) {}
+    }
+    function playGushSound() {
+      if (!gushAudio) return;
+      try {
+        gushAudio.currentTime = 0;
+        const pr = gushAudio.play();
+        if (pr && pr.catch) pr.catch(() => {});
+      } catch (e) {}
     }
     function playKnockSound() {
       if (chopAudio) {
