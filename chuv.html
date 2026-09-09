@@ -7785,6 +7785,9 @@
 
         if (map) map.appendChild(el);
 
+        el.style.left = `${data.x || 0}px`;
+        el.style.top = `${data.y || 0}px`;
+
         remote = {
           element: el,
           body: body,
@@ -7822,8 +7825,13 @@
       }
 
       remote.lastSeen = Date.now();
-      remote.element.style.left = `${data.x || 0}px`;
-      remote.element.style.top = `${data.y || 0}px`;
+      // Smooth: glide toward target instead of teleporting (hides network jitter)
+      if (typeof data.x === 'number') remote.tx = data.x;
+      if (typeof data.y === 'number') remote.ty = data.y;
+      if (remote.tx === undefined) {
+        remote.tx = remote.x;
+        remote.ty = remote.y;
+      }
 
       if (data.isSitting) {
         remote.element.classList.add('sitting');
@@ -7853,6 +7861,21 @@
         window.speechSynthesis.speak(u);
       } catch (e) {}
     }
+
+    // Remote glide loop: smooth out network jitter (20fps, cheap)
+    setInterval(() => {
+      for (const id in remotePlayers) {
+        const r = remotePlayers[id];
+        if (!r || !r.element || r.tx === undefined) continue;
+        if (typeof r.x !== 'number') { r.x = r.tx; r.y = r.ty; }
+        r.x += (r.tx - r.x) * 0.35;
+        r.y += (r.ty - r.y) * 0.35;
+        if (Math.abs(r.tx - r.x) < 0.5) r.x = r.tx;
+        if (Math.abs(r.ty - r.y) < 0.5) r.y = r.ty;
+        r.element.style.left = `${Math.round(r.x)}px`;
+        r.element.style.top = `${Math.round(r.y)}px`;
+      }
+    }, 50);
 
     function showRemoteSpeechBubble(senderId, text) {      const remote = remotePlayers[senderId];
       if (!remote || !remote.element) return;
