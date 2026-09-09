@@ -4048,28 +4048,40 @@
       if (Math.hypot(x - 695, y - 845) < 135) return true;
       return false;
     }
+    /* Strict grid grass: checkerboard cells, tiny pixel tufts */
     (function scatterTufts() {
-      let placed = 0, guard = 0;
-      while (placed < 70 && guard++ < 900) {
-        const x = 20 + Math.random() * (MAP_W - 40);
-        const y = 60 + Math.random() * (MAP_H - 120);
-        if (isOnRoad(x, y)) continue;
-        const t = document.createElement('div');
-        t.className = 'map-decor grass-tuft';
-        const s = 14 + Math.floor(Math.random() * 10);
-        t.style.left = `${Math.round(x)}px`;
-        t.style.top = `${Math.round(y)}px`;
-        t.style.width = `${s}px`;
-        t.style.height = `${s}px`;
-        t.innerHTML = TUFT_SVGS[placed % TUFT_SVGS.length];
-        const g = t.querySelector('.tuft-sway');
-        if (g) {
-          g.style.animationDuration = `${(2 + Math.random() * 1.6).toFixed(2)}s`;
-          g.style.animationDelay = `${(-Math.random() * 2).toFixed(2)}s`;
+      const STEP = 170;
+      const blocked = (x, y) => {
+        if (isOnRoad(x, y)) return true;
+        if (x > 240 && x < 500 && y > 1050 && y < 1230) return true; // pond
+        if (Math.hypot(x - 320, y - 430) < 90) return true; // shop
+        if (x > 1000 && x < 1180 && y > 1060 && y < 1200) return true; // table
+        return false;
+      };
+      let n = 0;
+      for (let col = 0; col * STEP < MAP_W; col++) {
+        for (let row = 0; row * STEP < MAP_H; row++) {
+          if ((col + row) % 2 !== 0) continue; // checkerboard
+          const x = col * STEP + STEP / 2;
+          const y = 60 + row * STEP + STEP / 2;
+          if (y > MAP_H - 40 || blocked(x, y)) continue;
+          const t = document.createElement('div');
+          t.className = 'map-decor grass-tuft';
+          const s = 8 + ((col * 7 + row * 13) % 3) * 2; // 8 / 10 / 12 px
+          t.style.left = `${Math.round(x)}px`;
+          t.style.top = `${Math.round(y)}px`;
+          t.style.width = `${s}px`;
+          t.style.height = `${s}px`;
+          t.innerHTML = TUFT_SVGS[(col * 7 + row * 13) % TUFT_SVGS.length];
+          const g = t.querySelector('.tuft-sway');
+          if (g) {
+            g.style.animationDuration = `${(2 + ((col + row) % 5) * 0.3).toFixed(2)}s`;
+            g.style.animationDelay = `${(-((col * 0.37 + row * 0.73) % 2.6)).toFixed(2)}s`;
+          }
+          if ((col + row) % 4 === 0) t.style.transform = 'scaleX(-1)';
+          map.appendChild(t);
+          n++;
         }
-        if (Math.random() < 0.5) t.style.transform = 'scaleX(-1)';
-        map.appendChild(t);
-        placed++;
       }
     })();
 
