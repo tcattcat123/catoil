@@ -4762,6 +4762,7 @@
     if (negotiationTable) negotiationTable.addEventListener('pointerdown', handleTableTap);
 
     /* Tap Ground -> Walk to location! */
+    let lastTapAt = 0;
     function handleGroundTap(e) {
       if (
         !e ||
@@ -4800,7 +4801,10 @@
       activeCallback = null;
 
       createTapMarker(targetX, targetY);
-      playBeep(650, 'sine', 0.04);
+      // No squeak on double-click: second rapid tap stays silent
+      const nowTap = Date.now();
+      if (!lastTapAt || nowTap - lastTapAt > 350) playBeep(650, 'sine', 0.04);
+      lastTapAt = nowTap;
 
       if (!isMoving) {
         isMoving = true;
@@ -6282,8 +6286,28 @@
         setTimeout(() => b.remove(), 700);
       }
     }
+    // Rock hit sample (freesound.org, CC0) + synth fallback
+    let rockAudio = null;
+    try {
+      rockAudio = new Audio('sounds/rock.mp3');
+      rockAudio.preload = 'auto';
+      rockAudio.volume = 0.9;
+    } catch (e) {
+      rockAudio = null;
+    }
     // Metallic clang for rocks (LOUD)
     function playClangSound() {
+      if (rockAudio) {
+        try {
+          rockAudio.currentTime = 0;
+          const pr = rockAudio.play();
+          if (pr && pr.catch) pr.catch(() => {
+            loudBlip(620, 'square', 0.06, 0.2, 0);
+            loudBlip(410, 'square', 0.1, 0.22, 0.06);
+          });
+          return;
+        } catch (e) { /* fall through to synth */ }
+      }
       loudBlip(620, 'square', 0.06, 0.2, 0);
       loudBlip(410, 'square', 0.1, 0.22, 0.06);
     }
