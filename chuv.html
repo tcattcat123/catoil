@@ -3751,6 +3751,17 @@
           <div id="stallStockList"></div>
           <div class="resume-section-title" style="margin-top:10px;">🛍️ OTHER STALLS</div>
           <div id="remoteStallsList"><div class="context-note">No other stalls nearby yet.</div></div>
+          <div class="resume-section-title" style="margin-top:10px;">📋 MY TASKS</div>
+          <div class="form-group">
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="taskTextInput" class="form-input" maxlength="80" placeholder="e.g. Follow on Twitter https://..." style="flex:1;" />
+              <input type="number" id="taskRewardInput" class="form-input" min="1" value="5" title="Reward in oil" style="width:70px;" />
+              <button type="button" class="stall-mini-btn" id="btnAddTask">Add</button>
+            </div>
+          </div>
+          <div id="myTasksList"></div>
+          <div class="resume-section-title" style="margin-top:10px;">🌍 TASKS AROUND</div>
+          <div id="remoteTasksList"><div class="context-note">No tasks around yet.</div></div>
         </div>
 
         <!-- PUMPS: level 1-5 showcase -->
@@ -4314,6 +4325,7 @@
         if (modalShopOverlay) modalShopOverlay.classList.remove('hidden');
         if (typeof renderShopPumps === 'function') renderShopPumps();
         if (typeof renderStall === 'function') renderStall();
+        if (typeof renderTasks === 'function') renderTasks();
       };
 
       createTapMarker(targetX, targetY);
@@ -6126,6 +6138,7 @@
       showSpeechBubble(catName ? `Hi! I'm ${catName}! 🐾` : 'Hi! 🐾', 3500);
       if (typeof broadcastState === 'function') broadcastState('join');
       if (typeof broadcastShop === 'function') broadcastShop();
+      if (typeof broadcastTasks === 'function') broadcastTasks();
     });
 
     /* ⛏️🪵 RESOURCES: wood, iron, oil + pump levels 1-5 */
@@ -7045,7 +7058,136 @@
       return false;
     }
 
-    /* 🗺️ MAP FILE: overlay map.json (editor canonical source) over defaults */
+    /* 📋 TASK BOARD: offer oil for actions (follow, repost...) */
+    let myTasks = [];
+    try {
+      myTasks = JSON.parse(localStorage.getItem('my_tasks') || '[]') || [];
+    } catch (e) {
+      myTasks = [];
+    }
+    const remoteTasks = {}; // senderId -> {cname, tasks:[...]}
+    function saveTasks() {
+      try { localStorage.setItem('my_tasks', JSON.stringify(myTasks)); } catch (e) {}
+    }
+    function broadcastTasks() {
+      if (typeof broadcastState === 'function') {
+        broadcastState('task_list', { tasks: myTasks.map(t => ({ id: t.id, text: t.text, reward: t.reward, doneBy: t.doneBy })) });
+      }
+    }
+    function linkifyTask(text) {
+      return escapeHtml(text).replace(/https?:\/\/[^\s<]+/g,
+        (u) => `<a href="${u}" target="_blank" style="color:#38bdf8;">${u}</a>`);
+    }
+    function renderTasks() {
+      const mine = document.getElementById('myTasksList');
+      if (mine) {
+        mine.innerHTML = myTasks.length ? myTasks.map(t =>
+          `<div class="stall-row"><span>📋 ${escapeHtml(t.text)} — ${t.reward}🛢️ ${t.doneBy.length ? '(done ✓)' : ''}</span>`
+          + `<button type="button" class="stall-mini-btn red" data-del-task="${t.id}">X</button></div>`
+        ).join('') : '<div class="context-note">No tasks yet. Offer oil for follows & reposts!</div>';
+        mine.querySelectorAll('[data-del-task]').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            if (ev) ev.stopPropagation();
+            const i = myTasks.findIndex(t => Number(t.id) === Number(btn.getAttribute('data-del-task')));
+            if (i !== -1) {
+              const [t] = myTasks.splice(i, 1);
+              if (!t.doneBy.length) addOil(t.reward); // refund escrow
+              saveTasks();
+              broadcastTasks();
+              renderTasks();
+            }
+          });
+        });
+      }
+      const around = document.getElementById('remoteTasksList');
+      if (around) {
+        const rows = [];
+        for (const [sid, r] of Object.entries(remoteTasks)) {
+          (r.tasks || []).forEach(t => {
+            const done = (t.doneBy || []).includes(clientUuid);
+            const nm = ((r.cname) || 'Cat').slice(0, 12);
+            rows.push(`<div class="stall-row"><span>📋 <b>${escapeHtml(nm)}</b>: ${linkifyTask(t.text)} — ${t.reward}🛢️</span>`
+              + (done
+                ? `<button type="button" class="stall-mini-btn" disabled>Done ✓</button>`
+                : `<button type="button" class="stall-mini-btn" data-do-task="${t.id}" data-task-from="${sid}">Do it</button>`));
+          });
+        }
+        around.innerHTML = rows.length ? rows.join('') : '<div class="context-note">No tasks around yet.</div>';
+        around.querySelectorAll('[data-do-task]').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            if (ev) ev.stopPropagation();
+            claimTask(btn.getAttribute('data-task-from'), Number(btn.getAttribute('data-do-task')));
+          });
+        });
+      }
+    }
+    const btnAddTask = document.getElementById('btnAddTask');
+    if (btnAddTask) btnAddTask.addEventListener('click', (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      const ti = document.getElementById('taskTextInput');
+      const ri = document.getElementById('taskRewardInput');
+      const text = (ti && ti.value.trim().slice(0, 80)) || '';
+      const reward = Math.max(1, parseInt((ri && ri.value) || '0', 10) || 0);
+      if (!text || !(reward > 0) || oilCount < reward) {
+        playBeep(200, 'sawtooth', 0.1);
+        if (!(oilCount >= reward)) showSpeechBubble('Not enough oil! 🛢️', 1800);
+        return;
+      }
+      oilCount -= reward;
+      saveRes();
+      updateResUI();
+      myTasks.push({ id: Date.now(), text, reward, doneBy: [] });
+      if (ti) ti.value = '';
+      saveTasks();
+      broadcastTasks();
+      renderTasks();
+      playBeep(750, 'sine', 0.08);
+    });
+    function claimTask(sellerId, taskId) {
+      const r = remoteTasks[sellerId];
+      if (!r) return;
+      if (Date.now() - ((remotePlayers[sellerId] || {}).lastSeen || 0) > 20000) {
+        showSpeechBubble('Author is offline 😴', 2000);
+        return;
+      }
+      netSend({ action: 'task_claim', senderId: myPlayerId, cid: clientUuid, to: sellerId, taskId });
+      showSpeechBubble('Sent for check! 📨', 2000);
+    }
+    function handleTaskPackets(msg) {
+      if (!msg || msg.senderId === myPlayerId) return false;
+      if (msg.action === 'task_list') {
+        remoteTasks[msg.senderId] = {
+          cname: (typeof msg.cname === 'string') ? msg.cname : '',
+          tasks: Array.isArray(msg.tasks) ? msg.tasks : []
+        };
+        renderTasks();
+        return true;
+      }
+      if (msg.action === 'task_claim') {
+        if (msg.to !== myPlayerId) return true;
+        const t = myTasks.find(x => Number(x.id) === Number(msg.taskId));
+        if (t && !t.doneBy.includes(msg.cid)) {
+          t.doneBy.push(msg.cid);
+          saveTasks();
+          broadcastTasks();
+          renderTasks();
+          playFanfare();
+          showSpeechBubble(`Task done, paid ${t.reward}🛢️! 🎉`, 3000);
+          netSend({ action: 'task_paid', senderId: myPlayerId, to: msg.senderId, reward: t.reward, taskId: t.id });
+        }
+        return true;
+      }
+      if (msg.action === 'task_paid') {
+        if (msg.to !== myPlayerId) return true;
+        addOil(msg.reward || 0);
+        playFanfare();
+        showSpeechBubble(`+${msg.reward || 0} 🛢️ task paid!`, 3000);
+        renderTasks();
+        return true;
+      }
+      return false;
+    }
+    setInterval(() => { if (myTasks.length) broadcastTasks(); }, 20000);
     function renderCustomObjects(list) {
       if (!Array.isArray(list)) return;
       gameMap.querySelectorAll('.custom-anim').forEach(el => {
@@ -7644,6 +7786,7 @@
     function handleNetMessage(msg) {
       if (!msg || msg.senderId === myPlayerId) return;
 
+      if (typeof handleTaskPackets === 'function' && handleTaskPackets(msg)) return;
       if (typeof handleBuyPackets === 'function' && handleBuyPackets(msg)) return;
 
       if (msg.action === 'online') {
