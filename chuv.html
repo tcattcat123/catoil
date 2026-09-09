@@ -101,6 +101,33 @@
       60% { transform: translateY(2px) scale(1.15); opacity: 1; }
       100% { transform: translateY(0) scale(1); opacity: 1; }
     }
+    .wood-tag {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 100%;
+      margin-top: 1px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fcd34d;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .wood-bit {
+      position: absolute;
+      background: #a16207;
+      image-rendering: pixelated;
+      pointer-events: none;
+      z-index: 19;
+      animation: woodChipBurst 0.6s ease-out forwards;
+    }
+    @keyframes woodChipBurst {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--dx, 0px), -22px) scale(0.5); opacity: 0; }
+    }
     .grass-tuft {
       position: absolute;
       z-index: 3;
@@ -4948,15 +4975,15 @@
         }
       }
 
-      // Shared wood chips: anyone walking over grabs one
+      // Shared wood chips: anyone walking over grabs the whole pile
       for (let i = woodDrops.length - 1; i >= 0; i--) {
         const w = woodDrops[i];
         if (Math.hypot(posX - w.x, posY - w.y) < 30) {
           woodDrops.splice(i, 1);
           if (w.el.parentNode) w.el.remove();
-          addWood(1);
+          addWood(w.qty || 1);
           playBeep(700, 'sine', 0.08);
-          showSpeechBubble('+1 🪵', 1500);
+          showSpeechBubble(`+${w.qty || 1} 🪵`, 1500);
           if (typeof broadcastState === 'function') broadcastState('wood_got', { did: w.id });
         }
       }
@@ -6656,23 +6683,44 @@
 
     /* Shared wood chips: pickaxe knocks them out of oaks, ANY player grabs by walking over */
     const woodDrops = [];
-    function spawnWoodDrop(x, y, id, silent) {
+    function spawnWoodDrop(x, y, id, silent, qty) {
       if (woodDrops.length > 15) {
         const old = woodDrops.shift();
         if (old && old.el.parentNode) old.el.remove();
       }
+      const amount = Math.min(Math.max(parseInt(qty, 10) || 0, 1), 25);
       const el = document.createElement('div');
       el.className = 'wood-drop';
       el.textContent = '🪵';
       el.style.left = `${Math.round(x)}px`;
       el.style.top = `${Math.round(y)}px`;
+      const tag = document.createElement('div');
+      tag.className = 'wood-tag';
+      tag.textContent = 'wood+' + amount;
+      el.appendChild(tag);
       map.appendChild(el);
-      const drop = { id: id || ('w' + Date.now() + Math.floor(Math.random() * 999)), el, x, y };
+      const drop = { id: id || ('w' + Date.now() + Math.floor(Math.random() * 999)), el, x, y, qty: amount };
       woodDrops.push(drop);
       if (!silent && typeof broadcastState === 'function') {
-        broadcastState('wood_drop', { did: drop.id, hx: Math.round(x), hy: Math.round(y) });
+        broadcastState('wood_drop', { did: drop.id, hx: Math.round(x), hy: Math.round(y), qty: amount });
       }
       return drop;
+    }
+    // Chip splash burst on hit
+    function woodChipBurst(x, y) {
+      for (let i = 0; i < 7; i++) {
+        const b = document.createElement('div');
+        b.className = 'wood-bit';
+        const s = 2 + Math.floor(Math.random() * 3);
+        b.style.width = `${s}px`;
+        b.style.height = `${s}px`;
+        b.style.left = `${Math.round(x + (Math.random() * 16 - 8))}px`;
+        b.style.top = `${Math.round(y + (Math.random() * 10 - 5))}px`;
+        b.style.setProperty('--dx', `${Math.round(Math.random() * 44 - 22)}px`);
+        b.style.background = Math.random() < 0.5 ? '#a16207' : '#65a30d';
+        map.appendChild(b);
+        setTimeout(() => b.remove(), 700);
+      }
     }
     function damageOaks(hx, hy) {
       const oaks = document.querySelectorAll('.oak-tree');
@@ -6684,9 +6732,13 @@
           void oak.offsetWidth;
           oak.classList.add('shaking');
           playBeep(300, 'square', 0.07);
+          woodChipBurst(hx, hy);
           if (Math.random() < 0.35) {
-            spawnWoodDrop(ox + (Math.random() * 60 - 30), oy + (Math.random() * 30 - 10));
-            showSpeechBubble('Wood chip! 🪵', 1500);
+            const qty = 1 + Math.floor(Math.random() * 25);
+            const a = Math.random() * Math.PI * 2;
+            const d = 60 + Math.random() * 70;
+            spawnWoodDrop(ox + Math.cos(a) * d, oy + Math.sin(a) * d * 0.6, undefined, false, qty);
+            showSpeechBubble('Wood chips! 🪵', 1500);
           }
           return true;
         }
@@ -7272,7 +7324,7 @@
         const hx = (typeof msg.hx === 'number') ? msg.hx : msg.x;
         const hy = (typeof msg.hy === 'number') ? msg.hy : msg.y;
         if (typeof spawnWoodDrop === 'function' && !woodDrops.some(w => w.id === msg.did)) {
-          spawnWoodDrop(hx, hy, msg.did, true);
+          spawnWoodDrop(hx, hy, msg.did, true, msg.qty);
         }
       } else if (msg.action === 'wood_got') {
         const i = woodDrops.findIndex(w => w.id === msg.did);
