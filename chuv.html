@@ -81,7 +81,26 @@
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
-    /* Swaying pixel grass tufts all over the map */
+    /* Shared wood chips: fly out on pickaxe hits, anyone can grab */
+    .wood-drop {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      margin-left: -12px;
+      margin-top: -12px;
+      z-index: 18;
+      font-size: 20px;
+      line-height: 1;
+      text-align: center;
+      pointer-events: none;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+      animation: woodDropPop 0.35s ease-out, itemFloat 1.2s 0.35s infinite alternate ease-in-out;
+    }
+    @keyframes woodDropPop {
+      0% { transform: translateY(-26px) scale(0.4); opacity: 0; }
+      60% { transform: translateY(2px) scale(1.15); opacity: 1; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
     .grass-tuft {
       position: absolute;
       z-index: 3;
@@ -562,6 +581,26 @@
       overflow: hidden;
       text-overflow: ellipsis;
       text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8);
+    }
+    /* Oil-by badge BELOW the fountain (distinct from nickname) */
+    .oil-by {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 100%;
+      margin-top: 1px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fbbf24;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      white-space: nowrap;
+      pointer-events: none;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     @keyframes oilPumpPulse {
       0%, 100% { transform: scale(1); }
@@ -4908,6 +4947,19 @@
           playBeep(950, 'square', 0.1);
         }
       }
+
+      // Shared wood chips: anyone walking over grabs one
+      for (let i = woodDrops.length - 1; i >= 0; i--) {
+        const w = woodDrops[i];
+        if (Math.hypot(posX - w.x, posY - w.y) < 30) {
+          woodDrops.splice(i, 1);
+          if (w.el.parentNode) w.el.remove();
+          addWood(1);
+          playBeep(700, 'sine', 0.08);
+          showSpeechBubble('+1 🪵', 1500);
+          if (typeof broadcastState === 'function') broadcastState('wood_got', { did: w.id });
+        }
+      }
     }
 
     /* ⛏️ OIL HIT: pickaxe strike + black pixel oil fountain 🛢️ */
@@ -4946,6 +4998,10 @@
         tag.className = 'oil-owner';
         tag.textContent = String(owner).slice(0, 12);
         node.appendChild(tag);
+        const by = document.createElement('div');
+        by.className = 'oil-by';
+        by.textContent = 'oil by ' + String(owner).slice(0, 12);
+        node.appendChild(by);
       }
       node.dataset.oil = hasOil ? '1' : '';
       node.addEventListener('pointerdown', (e) => {
@@ -5023,6 +5079,11 @@
         if (hasPickaxe) {
           // Rocks first: pickaxe chips the rock instead of digging
           if (typeof damageRocks === 'function' && damageRocks(hitX, hitY)) {
+            if (typeof broadcastState === 'function') broadcastState('hit', { hx: Math.round(hitX), hy: Math.round(hitY), oil: false });
+            return;
+          }
+          // Oaks: knocks out shared wood chips instead of digging
+          if (typeof damageOaks === 'function' && damageOaks(hitX, hitY)) {
             if (typeof broadcastState === 'function') broadcastState('hit', { hx: Math.round(hitX), hy: Math.round(hitY), oil: false });
             return;
           }
@@ -6042,28 +6103,14 @@
     });
     // Note: first updateResUI() runs later (after PUMP_LEVELS init) — see below.
 
-    // Wood: tap an oak -> walk there -> shake +1 wood (10s cooldown per tree)
+    // Wood: tap an oak -> walk there -> pickaxe swing (chips fly out sometimes)
     document.querySelectorAll('.oak-tree').forEach(oak => {
       oak.addEventListener('pointerdown', (e) => {
         if (e) e.stopPropagation();
         if (typeof isCooking !== 'undefined' && isCooking) return;
         targetX = oak.offsetLeft + oak.offsetWidth / 2;
         targetY = oak.offsetTop + oak.offsetHeight - 6;
-        activeCallback = () => {
-          const now = Date.now();
-          if (oak.dataset.cd && now < parseInt(oak.dataset.cd, 10)) {
-            playBeep(200, 'sawtooth', 0.08);
-            showSpeechBubble('Tree resting... 🌳', 1500);
-            return;
-          }
-          oak.dataset.cd = String(now + 10000);
-          oak.classList.remove('shaking');
-          void oak.offsetWidth;
-          oak.classList.add('shaking');
-          playBeep(320, 'square', 0.08);
-          addWood(1);
-          showSpeechBubble('+1 🪵', 1500);
-        };
+        activeCallback = () => doOilHit();
         createTapMarker(targetX, targetY);
         if (!isMoving) {
           isMoving = true;
@@ -6606,6 +6653,46 @@
       if (modalMarketOverlay) modalMarketOverlay.classList.add('hidden');
     });
     renderMarket();
+
+    /* Shared wood chips: pickaxe knocks them out of oaks, ANY player grabs by walking over */
+    const woodDrops = [];
+    function spawnWoodDrop(x, y, id, silent) {
+      if (woodDrops.length > 15) {
+        const old = woodDrops.shift();
+        if (old && old.el.parentNode) old.el.remove();
+      }
+      const el = document.createElement('div');
+      el.className = 'wood-drop';
+      el.textContent = '🪵';
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      map.appendChild(el);
+      const drop = { id: id || ('w' + Date.now() + Math.floor(Math.random() * 999)), el, x, y };
+      woodDrops.push(drop);
+      if (!silent && typeof broadcastState === 'function') {
+        broadcastState('wood_drop', { did: drop.id, hx: Math.round(x), hy: Math.round(y) });
+      }
+      return drop;
+    }
+    function damageOaks(hx, hy) {
+      const oaks = document.querySelectorAll('.oak-tree');
+      for (const oak of oaks) {
+        const ox = oak.offsetLeft + oak.offsetWidth / 2;
+        const oy = oak.offsetTop + oak.offsetHeight - 10;
+        if (Math.hypot(ox - hx, oy - hy) < 110) {
+          oak.classList.remove('shaking');
+          void oak.offsetWidth;
+          oak.classList.add('shaking');
+          playBeep(300, 'square', 0.07);
+          if (Math.random() < 0.35) {
+            spawnWoodDrop(ox + (Math.random() * 60 - 30), oy + (Math.random() * 30 - 10));
+            showSpeechBubble('Wood chip! 🪵', 1500);
+          }
+          return true;
+        }
+      }
+      return false;
+    }
 
     /* 🗺️ MAP FILE: overlay map.json (editor canonical source) over defaults */
     function renderCustomObjects(list) {
@@ -7179,6 +7266,19 @@
         if (isAdmin) {
           playFanfare();
           showSpeechBubble(`📩 New request from ${msg.lead.name}!`, 5000);
+        }
+      } else if (msg.action === 'wood_drop') {
+        updateRemotePlayer(msg);
+        const hx = (typeof msg.hx === 'number') ? msg.hx : msg.x;
+        const hy = (typeof msg.hy === 'number') ? msg.hy : msg.y;
+        if (typeof spawnWoodDrop === 'function' && !woodDrops.some(w => w.id === msg.did)) {
+          spawnWoodDrop(hx, hy, msg.did, true);
+        }
+      } else if (msg.action === 'wood_got') {
+        const i = woodDrops.findIndex(w => w.id === msg.did);
+        if (i !== -1) {
+          if (woodDrops[i].el.parentNode) woodDrops[i].el.remove();
+          woodDrops.splice(i, 1);
         }
       } else if (msg.action === 'hit') {
         updateRemotePlayer(msg);
