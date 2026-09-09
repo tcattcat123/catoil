@@ -116,6 +116,21 @@
       white-space: nowrap;
       pointer-events: none;
     }
+    /* Shared stone chips (grey splash, same mechanics as wood) */
+    .stone-drop {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      margin-left: -12px;
+      margin-top: -12px;
+      z-index: 18;
+      font-size: 20px;
+      line-height: 1;
+      text-align: center;
+      pointer-events: none;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+      animation: woodDropPop 0.35s ease-out, itemFloat 1.2s 0.35s infinite alternate ease-in-out;
+    }
     .wood-bit {
       position: absolute;
       background: #a16207;
@@ -3049,6 +3064,7 @@
         <span class="ui-score" id="ironCounter" title="Iron">⛓️ 0</span>
         <span class="ui-score" id="oilCounter" title="Oil">🛢️ 0</span>
         <span class="ui-score" id="leverCounter" title="Levers">🎚️ 0</span>
+        <span class="ui-score" id="stoneCounter" title="Stone">🪨 0</span>
       </div>
       <div class="top-nav-controls">
         <a href="mac.html" class="btn-nav" id="btnNavMac">🖥️ Macintosh OS</a>
@@ -4987,6 +5003,19 @@
           if (typeof broadcastState === 'function') broadcastState('wood_got', { did: w.id });
         }
       }
+
+      // Shared stone chips: anyone walking over grabs the whole pile
+      for (let i = stoneDrops.length - 1; i >= 0; i--) {
+        const w = stoneDrops[i];
+        if (Math.hypot(posX - w.x, posY - w.y) < 30) {
+          stoneDrops.splice(i, 1);
+          if (w.el.parentNode) w.el.remove();
+          addStone(w.qty || 1);
+          playBeep(620, 'square', 0.08);
+          showSpeechBubble(`+${w.qty || 1} 🪨`, 1500);
+          if (typeof broadcastState === 'function') broadcastState('stone_got', { did: w.id });
+        }
+      }
     }
 
     /* ⛏️ OIL HIT: pickaxe strike + black pixel oil fountain 🛢️ */
@@ -5122,8 +5151,10 @@
             showSpeechBubble('Oil! 🛢️', 2200);
           }
         } else {
-          // Paws only: squirrels are caught by paws alone, no digging
+          // Paws: squirrels + visible feedback on trees/rocks (no loot without pickaxe)
           if (typeof damagePorings === 'function') damagePorings(hitX, hitY);
+          if (typeof damageOaks === 'function') damageOaks(hitX, hitY, true);
+          if (typeof rockTapVisual === 'function') rockTapVisual(hitX, hitY);
         }
         if (typeof broadcastState === 'function') broadcastState('hit', { hx: Math.round(hitX), hy: Math.round(hitY), oil: hasOil });
       }, 130);
@@ -6184,6 +6215,20 @@
       map.appendChild(el);
       return rock;
     }
+    // Paws tap on a rock: shake + dull thud, no loot
+    function rockTapVisual(hx, hy) {
+      for (const r of rocks) {
+        if (!r.alive) continue;
+        if (Math.hypot(r.x - hx, r.y - hy) < 80) {
+          r.el.classList.remove('hurt');
+          void r.el.offsetWidth;
+          r.el.classList.add('hurt');
+          playBeep(150, 'sawtooth', 0.1);
+          return true;
+        }
+      }
+      return false;
+    }
     function damageRocks(hx, hy) {
       for (const r of rocks) {
         if (!r.alive) continue;
@@ -6194,6 +6239,7 @@
           r.el.classList.add('hurt');
           r.el.style.filter = `brightness(${0.55 + 0.45 * Math.max(r.hp, 0) / ROCK_HP})`;
           if (r.fill) r.fill.style.width = `${Math.max(r.hp, 0) / ROCK_HP * 100}%`;
+          rockChipBurst(hx, hy);
           if (r.hp <= 0) {
             r.alive = false;
             r.el.remove();
@@ -6207,12 +6253,64 @@
               if (idx !== -1) rocks[idx] = nr;
             }, 25000);
           } else {
-            playBeep(320, 'square', 0.07);
+            playClangSound();
+            // Rarely a stone chip pops out (shared pickup)
+            if (Math.random() < 0.1) {
+              const qty = 1 + Math.floor(Math.random() * 2);
+              spawnStoneDrop(r.x + (Math.random() * 70 - 35), r.y + (Math.random() * 40 - 20), undefined, false, qty);
+            }
           }
           return true;
         }
       }
       return false;
+    }
+    // Grey rock-chip splash on every rock hit
+    function rockChipBurst(x, y) {
+      for (let i = 0; i < 10; i++) {
+        const b = document.createElement('div');
+        b.className = 'wood-bit';
+        const s = 3 + Math.floor(Math.random() * 4);
+        b.style.width = `${s}px`;
+        b.style.height = `${s}px`;
+        b.style.left = `${Math.round(x + (Math.random() * 20 - 10))}px`;
+        b.style.top = `${Math.round(y + (Math.random() * 12 - 6))}px`;
+        b.style.setProperty('--dx', `${Math.round(Math.random() * 56 - 28)}px`);
+        b.style.background = Math.random() < 0.5 ? '#9ca3af' : '#6b7280';
+        map.appendChild(b);
+        setTimeout(() => b.remove(), 700);
+      }
+    }
+    // Metallic clang for rocks
+    function playClangSound() {
+      playBeep(620, 'square', 0.06);
+      setTimeout(() => playBeep(410, 'square', 0.09), 60);
+    }
+    /* Shared stone chips: anyone walking over grabs the pile */
+    const stoneDrops = [];
+    function spawnStoneDrop(x, y, id, silent, qty) {
+      if (stoneDrops.length > 12) {
+        const old = stoneDrops.shift();
+        if (old && old.el.parentNode) old.el.remove();
+      }
+      const amount = Math.min(Math.max(parseInt(qty, 10) || 0, 1), 25);
+      const el = document.createElement('div');
+      el.className = 'stone-drop';
+      el.textContent = '🪨';
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      const tag = document.createElement('div');
+      tag.className = 'wood-tag';
+      tag.style.color = '#e5e7eb';
+      tag.textContent = 'stone+' + amount;
+      el.appendChild(tag);
+      map.appendChild(el);
+      const drop = { id: id || ('s' + Date.now() + Math.floor(Math.random() * 999)), el, x, y, qty: amount };
+      stoneDrops.push(drop);
+      if (!silent && typeof broadcastState === 'function') {
+        broadcastState('stone_drop', { did: drop.id, hx: Math.round(x), hy: Math.round(y), qty: amount });
+      }
+      return drop;
     }
     for (let i = 0; i < 8; i++) {
       spawnIronRock(FIELD.x0 + Math.random() * (FIELD.x1 - FIELD.x0), FIELD.y0 + Math.random() * (FIELD.y1 - FIELD.y0));
@@ -6552,10 +6650,12 @@
 
     /* 🛒 RESOURCE MARKET: base goods + levers + custom goods from UI */
     let leverCount = 0;
+    let stoneCount = 0;
     let customGoods = []; // {id, icon, name, price, stock}
     let customInv = {};   // id -> qty owned
     try {
       leverCount = parseInt(localStorage.getItem('res_levers') || '0', 10) || 0;
+      stoneCount = parseInt(localStorage.getItem('res_stone') || '0', 10) || 0;
       customGoods = JSON.parse(localStorage.getItem('custom_goods') || '[]') || [];
       customInv = JSON.parse(localStorage.getItem('custom_inv') || '{}') || {};
     } catch (e) {}
@@ -6563,6 +6663,7 @@
       { id: 'wood', icon: '🪵', name: 'WOOD', sub: 'Wood', qty: 10, price: 15 },
       { id: 'iron', icon: '⛓️', name: 'IRON', sub: 'Iron', qty: 10, price: 25 },
       { id: 'oil', icon: '🛢️', name: 'OIL', sub: 'Oil', qty: 10, price: 30 },
+      { id: 'stone', icon: '🪨', name: 'STONE', sub: 'Stone', qty: 10, price: 20 },
       { id: 'levers', icon: '🎚️', name: 'LEVERS', sub: 'Levers (for Oil)', qty: 1, price: 10 }
     ];
     const leverCounter = document.getElementById('leverCounter');
@@ -6575,16 +6676,19 @@
     function saveMarket() {
       try {
         localStorage.setItem('res_levers', String(leverCount));
+        localStorage.setItem('res_stone', String(stoneCount));
         localStorage.setItem('custom_goods', JSON.stringify(customGoods));
         localStorage.setItem('custom_inv', JSON.stringify(customInv));
       } catch (e) {}
     }
     function addLevers(n) { leverCount += n; saveMarket(); updateResUI(); }
+    function addStone(n) { stoneCount += n; saveMarket(); updateResUI(); }
     function ownedOf(id) {
       if (id === 'wood') return woodCount;
       if (id === 'iron') return ironCount;
       if (id === 'oil') return oilCount;
       if (id === 'levers') return leverCount;
+      if (id === 'stone') return stoneCount;
       return customInv[id] || 0;
     }
     function giveGood(id, n) {
@@ -6592,6 +6696,7 @@
       else if (id === 'iron') addIron(n);
       else if (id === 'oil') addOil(n);
       else if (id === 'levers') addLevers(n);
+      else if (id === 'stone') addStone(n);
       else { customInv[id] = (customInv[id] || 0) + n; saveMarket(); }
     }
     function renderMarket() {
@@ -6727,7 +6832,8 @@
         setTimeout(() => b.remove(), 700);
       }
     }
-    function damageOaks(hx, hy) {
+    // Oaks: visual feedback always; wood drops only with pickaxe
+    function damageOaks(hx, hy, visualOnly) {
       const oaks = document.querySelectorAll('.oak-tree');
       for (const oak of oaks) {
         const ox = oak.offsetLeft + oak.offsetWidth / 2;
@@ -6738,7 +6844,7 @@
           oak.classList.add('shaking');
           playKnockSound();
           woodChipBurst(hx, hy);
-          if (Math.random() < 0.2) {
+          if (!visualOnly && Math.random() < 0.12) {
             // Weighted pile: 1-3 common, 4-10 uncommon, 11-25 rare
             const roll = Math.random();
             const qty = roll < 0.7 ? 1 + Math.floor(Math.random() * 3)
@@ -6924,7 +7030,8 @@
       wood: { icon: '🪵', name: 'Wood' },
       iron: { icon: '⛓️', name: 'Iron' },
       oil: { icon: '🛢️', name: 'Oil' },
-      levers: { icon: '🎚️', name: 'Levers' }
+      levers: { icon: '🎚️', name: 'Levers' },
+      stone: { icon: '🪨', name: 'Stone' }
     };
     function saveShop() {
       try { localStorage.setItem('my_shop', JSON.stringify(myShop)); } catch (e) {}
@@ -6969,12 +7076,13 @@
       playBeep(700, 'sine', 0.08);
     });
 
-    function resCount(t) { return t === 'wood' ? woodCount : t === 'iron' ? ironCount : t === 'oil' ? oilCount : leverCount; }
+    function resCount(t) { return t === 'wood' ? woodCount : t === 'iron' ? ironCount : t === 'oil' ? oilCount : t === 'levers' ? leverCount : stoneCount; }
     function takeRes(t, n) {
       if (t === 'wood') woodCount = Math.max(0, woodCount - n);
       else if (t === 'iron') ironCount = Math.max(0, ironCount - n);
       else if (t === 'oil') oilCount = Math.max(0, oilCount - n);
-      else leverCount = Math.max(0, leverCount - n);
+      else if (t === 'levers') leverCount = Math.max(0, leverCount - n);
+      else stoneCount = Math.max(0, stoneCount - n);
       saveRes();
       updateResUI();
     }
@@ -6983,7 +7091,7 @@
       if (inv) inv.textContent = `📦 You: 🪵 ${woodCount} · ⛓️ ${ironCount} · 🛢️ ${oilCount} · 🪙 ${score}`;
       const rows = document.getElementById('stallListRows');
       if (rows) {
-        rows.innerHTML = ['wood', 'iron', 'oil', 'levers'].map(t => {
+        rows.innerHTML = ['wood', 'iron', 'oil', 'levers', 'stone'].map(t => {
           const m = RES_META[t];
           return `<div class="stall-row"><span>${m.icon} ${m.name} (have ${resCount(t)})</span>`
             + `<input type="number" id="listQty_${t}" value="1" min="1" />`
@@ -7051,7 +7159,8 @@
       if (l.type === 'wood') addWood(l.qty);
       else if (l.type === 'iron') addIron(l.qty);
       else if (l.type === 'oil') addOil(l.qty);
-      else addLevers(l.qty);
+      else if (l.type === 'levers') addLevers(l.qty);
+      else addStone(l.qty);
       saveShop();
       broadcastShop();
       renderStall();
@@ -7192,7 +7301,8 @@
           if (msg.type === 'wood') addWood(1);
           else if (msg.type === 'iron') addIron(1);
           else if (msg.type === 'oil') addOil(1);
-          else addLevers(1);
+          else if (msg.type === 'levers') addLevers(1);
+          else addStone(1);
           playFanfare();
           showSpeechBubble('Bought! 🎉', 2000);
           if (modalBuyOverlay) modalBuyOverlay.classList.add('hidden');
@@ -7341,6 +7451,19 @@
           if (woodDrops[i].el.parentNode) woodDrops[i].el.remove();
           woodDrops.splice(i, 1);
         }
+      } else if (msg.action === 'stone_drop') {
+        updateRemotePlayer(msg);
+        const hx = (typeof msg.hx === 'number') ? msg.hx : msg.x;
+        const hy = (typeof msg.hy === 'number') ? msg.hy : msg.y;
+        if (typeof spawnStoneDrop === 'function' && !stoneDrops.some(w => w.id === msg.did)) {
+          spawnStoneDrop(hx, hy, msg.did, true, msg.qty);
+        }
+      } else if (msg.action === 'stone_got') {
+        const i = stoneDrops.findIndex(w => w.id === msg.did);
+        if (i !== -1) {
+          if (stoneDrops[i].el.parentNode) stoneDrops[i].el.remove();
+          stoneDrops.splice(i, 1);
+        }
       } else if (msg.action === 'hit') {
         updateRemotePlayer(msg);
         const hx = (typeof msg.hx === 'number') ? msg.hx : msg.x;
@@ -7428,6 +7551,11 @@
           lastSeen: Date.now()
         };
         remotePlayers[id] = remote;
+        // Voice: announce newcomers once
+        try {
+          const nm = (typeof data.cname === 'string' && data.cname) ? data.cname.slice(0, 12) : '';
+          speakText(nm ? `${nm} joined the game` : 'A new cat joined the game');
+        } catch (e) {}
       }
       if (remote.pick) remote.pick.style.display = (!data.tool || data.tool === 'pick') ? '' : 'none';
       if (remote.rname) {
@@ -7464,8 +7592,20 @@
       }
     }
 
-    function showRemoteSpeechBubble(senderId, text) {
-      const remote = remotePlayers[senderId];
+    /* Voice announcements (new player joined) */
+    function speakText(t) {
+      try {
+        if (!('speechSynthesis' in window)) return;
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = 'en-US';
+        u.rate = 1;
+        u.pitch = 1.1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+
+    function showRemoteSpeechBubble(senderId, text) {      const remote = remotePlayers[senderId];
       if (!remote || !remote.element) return;
 
       const existing = remote.element.querySelector('.cat-speech-bubble');
