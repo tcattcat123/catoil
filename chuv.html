@@ -6830,7 +6830,24 @@
         osc.stop(t0 + dur);
       } catch (e) {}
     }
+    // Wood chop sample (freesound.org, CC0) + synth fallback
+    let chopAudio = null;
+    try {
+      chopAudio = new Audio('sounds/chop.mp3');
+      chopAudio.preload = 'auto';
+      chopAudio.volume = 0.9;
+    } catch (e) {
+      chopAudio = null;
+    }
     function playKnockSound() {
+      if (chopAudio) {
+        try {
+          chopAudio.currentTime = 0;
+          const pr = chopAudio.play();
+          if (pr && pr.catch) pr.catch(() => loudBlip(150, 'square', 0.07, 0.22, 0));
+          return;
+        } catch (e) { /* fall through to synth */ }
+      }
       loudBlip(150, 'square', 0.07, 0.22, 0);
       loudBlip(95, 'triangle', 0.14, 0.25, 0.07);
     }
