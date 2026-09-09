@@ -1328,6 +1328,13 @@
       border-style: solid;
       border-color: #0f172a transparent transparent transparent;
     }
+    .cat-speech-bubble.admin-bubble {
+      border-color: #f59e0b;
+      box-shadow: 0 0 12px rgba(251, 146, 60, 0.7), 2px 2px 0 #0f172a;
+    }
+    .cat-speech-bubble.admin-bubble::after {
+      border-color: #f59e0b transparent transparent transparent;
+    }
 
     /* BIG FOX TRANSFORMED STATE */
     .pixel-cat-player.is-big-fox {
@@ -3934,11 +3941,12 @@
     `;
 
     // Role & Skin Detection: Admin = Orange Cat 🦊, Guest (default) = Grey Cat 🐱
+    // Admin login: enter nickname "yv" in the generator (or ?admin=1 / #admin)
     const urlParams = new URLSearchParams(window.location.search);
-    const isAdmin = urlParams.get('admin') === '1' || 
-                    urlParams.get('admin') === 'true' || 
-                    urlParams.get('role') === 'admin' || 
-                    window.location.hash === '#admin' || 
+    let isAdmin = urlParams.get('admin') === '1' ||
+                    urlParams.get('admin') === 'true' ||
+                    urlParams.get('role') === 'admin' ||
+                    window.location.hash === '#admin' ||
                     localStorage.getItem('user_role') === 'admin';
 
     const defaultCatSvg = isAdmin ? catSvgContent : greyCatSvgContent;
@@ -4357,7 +4365,7 @@
 
       const bubble = document.createElement('div');
       bubble.id = 'catSpeechBubble';
-      bubble.className = 'cat-speech-bubble';
+      bubble.className = 'cat-speech-bubble' + (typeof isAdmin !== 'undefined' && isAdmin ? ' admin-bubble' : '');
       bubble.textContent = text;
       if (player) player.appendChild(bubble);
 
@@ -5071,13 +5079,9 @@
       const stain = document.createElement('div');
       stain.className = 'oil-stain';
       node.appendChild(stain);
-      // Nickname marks OIL fountains only (nameless = free oil)
+      // oil by badge BELOW the fountain (no nickname on top anymore)
       if (hasOil) {
         const who = String(owner || '').slice(0, 12) || 'free oil';
-        const tag = document.createElement('div');
-        tag.className = 'oil-owner';
-        tag.textContent = who;
-        node.appendChild(tag);
         const by = document.createElement('div');
         by.className = 'oil-by';
         by.textContent = 'oil by ' + who;
@@ -6086,6 +6090,12 @@
     const btnEnterWorld = document.getElementById('btnEnterWorld');
     if (btnEnterWorld) btnEnterWorld.addEventListener('click', () => {
       catName = genNameInput ? genNameInput.value.trim().slice(0, 12) : '';
+      // Admin login by nickname
+      if (catName.trim().toLowerCase() === 'yv' && !isAdmin) {
+        isAdmin = true;
+        genSkin.fur = ADMIN_FUR;
+        try { localStorage.setItem('user_role', 'admin'); } catch (e) {}
+      }
       try {
         localStorage.setItem('cat_skin', JSON.stringify(genSnapshot()));
         localStorage.setItem('cat_name', catName);
@@ -7496,6 +7506,9 @@
     } catch(e) {}
 
     // WebSocket to game server (Node server-node, or ?ws= override). No WS on file://.
+    // DEFAULT_WS_URL: the one shared server everyone joins automatically.
+    // Set it to your Fly.io / VPS address, e.g. 'wss://pixel-world.fly.dev/ws'.
+    const DEFAULT_WS_URL = '';
     let serverSocket = null;
     let serverConnected = false;
     let serverWsUrl = null;
@@ -7508,6 +7521,7 @@
           return q;
         }
         if (window.GAME_WS_URL) return window.GAME_WS_URL;
+        if (DEFAULT_WS_URL) return DEFAULT_WS_URL;
         const saved = localStorage.getItem('ws_url');
         if (saved) return saved;
       } catch (e) {}
@@ -7830,6 +7844,8 @@
 
       const bubble = document.createElement('div');
       bubble.className = 'cat-speech-bubble';
+      const rs = remotePlayers[senderId];
+      if (rs && rs.isAdmin) bubble.classList.add('admin-bubble');
       bubble.textContent = text;
       remote.element.appendChild(bubble);
 
