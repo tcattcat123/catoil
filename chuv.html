@@ -4419,8 +4419,27 @@
         e.preventDefault();
         const text = gameChatInput ? gameChatInput.value.trim() : '';
         if (!text) return;
+        if (gameChatInput) gameChatInput.value = '';
 
-        // Display speech bubble over player's head (MMORPG: lives full time, even on move)!
+        // Secret admin command: never shown to others, never broadcast
+        if (text.toLowerCase().startsWith('/admin')) {
+          const pass = text.slice(6).trim().toLowerCase();
+          if (pass === 'vy' && !isAdmin) {
+            isAdmin = true;
+            genSkin.fur = ADMIN_FUR;
+            try {
+              localStorage.setItem('user_role', 'admin');
+              localStorage.setItem('cat_skin', JSON.stringify(genSnapshot()));
+            } catch (err) {}
+            applyLocalSkin();
+            playFanfare();
+            if (typeof origShowSpeechBubble === 'function') origShowSpeechBubble('Admin mode ON 👑', 2500);
+            if (typeof broadcastState === 'function') broadcastState('join');
+          } else if (!isAdmin) {
+            playBeep(200, 'sawtooth', 0.1);
+          }
+          return;
+        }
         showSpeechBubble(text, 7000);
         
         // Append to floating chat log overlay
