@@ -5048,9 +5048,9 @@
       const stain = document.createElement('div');
       stain.className = 'oil-stain';
       node.appendChild(stain);
-      // Nickname marks OIL fountains only (fallback for nameless cats)
+      // Nickname marks OIL fountains only (nameless = free oil)
       if (hasOil) {
-        const who = String(owner || '').slice(0, 12) || 'stray cat';
+        const who = String(owner || '').slice(0, 12) || 'free oil';
         const tag = document.createElement('div');
         tag.className = 'oil-owner';
         tag.textContent = who;
