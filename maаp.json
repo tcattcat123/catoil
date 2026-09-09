@@ -1,0 +1,44 @@
+{
+  "_comment": "Pixel World map file (v1). Canonical layout source for the future map editor: editors read/write THIS file, the game overlays it on top of built-in defaults. Coordinates are world px, top-left origin. Object x/y = style left/top (top-left corner), except fountain/lamps/flowers/chicks = center-ish placement used by the game.",
+  "name": "Start Village + Resource Field",
+  "version": 1,
+  "size": { "w": 3200, "h": 1800 },
+  "background": { "color": "#80bd3f", "tile": "zem.jpg", "tilesPerScreen": [2, 2] },
+  "playerStart": { "x": 695, "y": 1080 },
+  "roads": [
+    { "x": 0, "y": 770, "w": 1560, "h": 150, "note": "horizontal village road, ENDS at x=1560" },
+    { "x": 610, "y": 0, "w": 170, "h": 1800, "note": "vertical village road" }
+  ],
+  "fountain": { "x": 695, "y": 845 },
+  "lamps": [[560, 700], [810, 700], [560, 980], [810, 980]],
+  "objects": [
+    { "type": "shop", "x": 320, "y": 430 },
+    { "type": "table", "x": 1080, "y": 1120 },
+    { "type": "pond", "x": 320, "y": 1116 },
+    { "type": "fish", "x": 416, "y": 1152 },
+    { "type": "palm", "x": 1230, "y": 990 },
+    { "type": "chick", "x": 1000, "y": 1080 },
+    { "type": "chick", "x": 1050, "y": 1170 },
+    { "type": "chick", "x": 1150, "y": 1090 },
+    { "type": "chick", "x": 1120, "y": 1180 },
+    { "type": "tree", "x": 256, "y": 180 },
+    { "type": "tree", "x": 2720, "y": 252 },
+    { "type": "tree", "x": 320, "y": 1350 },
+    { "type": "tree", "x": 2624, "y": 1404 }
+  ],
+  "flowers": [
+    [150, 150], [450, 200], [150, 600], [150, 1350],
+    [500, 1500], [850, 200], [1100, 300], [1000, 600],
+    [1400, 200], [300, 1600], [1300, 1400], [200, 300],
+    [1700, 200], [1700, 1600], [2100, 200], [1900, 1200],
+    [2300, 1400], [2500, 700], [2600, 200], [2700, 1100],
+    [2900, 1600], [3050, 1200], [2400, 1600], [1800, 1000]
+  ],
+  "field": {
+    "x0": 1650, "y0": 80, "x1": 3120, "y1": 1720,
+    "sign": [1760, 640],
+    "note": "resource field: squirrels, iron rocks, oil digs"
+  },
+  "spawns": { "porings": 8, "ironRocks": 8, "coins": 4 },
+  "customObjects": []
+}

@@ -6124,6 +6124,10 @@
     }
     function applyMapData(M) {
       if (!M || typeof M !== 'object') return;
+      if (M.type === 'IsometricMapContainer') {
+        console.warn('[map] This is an izo-editor file. Use the 🎮 map.json button in izo to export the game format.');
+        return;
+      }
       try {
         if (M.size) {
           if (M.size.w > 400) MAP_W = M.size.w;
