@@ -7526,8 +7526,7 @@
 
     // WebSocket to game server (Node server-node, or ?ws= override). No WS on file://.
     // DEFAULT_WS_URL: the one shared server everyone joins automatically.
-    // Set it to your Fly.io / VPS address, e.g. 'wss://pixel-world.fly.dev/ws'.
-    const DEFAULT_WS_URL = '';
+    const DEFAULT_WS_URL = 'wss://catoil.fly.dev/ws';
     let serverSocket = null;
     let serverConnected = false;
     let serverWsUrl = null;
