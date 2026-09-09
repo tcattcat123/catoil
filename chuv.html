@@ -1967,6 +1967,31 @@
       margin-top: 6px;
       flex-wrap: wrap;
     }
+    /* Personal Shop tabs: Shop first, About behind a button */
+    .shop-tabs {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .shop-tab-btn {
+      flex: 1;
+      background: #ffffff;
+      color: #0f172a;
+      border: 2px solid #0f172a;
+      border-radius: 8px;
+      padding: 9px 8px;
+      font-family: 'VT323', monospace;
+      font-size: 19px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 #0f172a;
+    }
+    .shop-tab-btn.active {
+      background: #15803d;
+      color: #ffffff;
+      border-color: #14532d;
+      box-shadow: 3px 3px 0 #14532d;
+    }
 
     .btn-modal-action {
       background: #ffffff;
@@ -6265,7 +6290,52 @@
         <polygon points="22,46 42,46 35,56 29,56" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
         <rect x="27" y="47" width="10" height="8" class="c-oil"/>
       </svg>`;
-    /* Personal Shop pump showcase */
+    /* Personal Shop tabs: Shop pane first, About (resume) behind a button */
+    (function setupShopTabs() {
+      const sc = document.querySelector('.modal-scroll-content');
+      if (!sc || sc.dataset.tabsDone) return;
+      const kids = [...sc.children];
+      const isShopNode = (el) => el.querySelector && (el.querySelector('#stallInvRow') || el.querySelector('#shopPumpsGrid'));
+      const isCta = (el) => el.classList && el.classList.contains('modal-cta-row');
+      const shopNodes = kids.filter(isShopNode);
+      const ctaNode = kids.find(isCta);
+      if (!shopNodes.length) return;
+      sc.dataset.tabsDone = '1';
+      const tabBar = document.createElement('div');
+      tabBar.className = 'shop-tabs';
+      tabBar.innerHTML = `<button type="button" class="shop-tab-btn active" data-tab="shop">🏪 Shop</button>`
+        + `<button type="button" class="shop-tab-btn" data-tab="about">📌 About me</button>`;
+      const aboutPane = document.createElement('div');
+      aboutPane.id = 'aboutPane';
+      aboutPane.style.display = 'none';
+      aboutPane.style.flexDirection = 'column';
+      aboutPane.style.gap = '16px';
+      sc.prepend(tabBar);
+      kids.forEach(el => {
+        if (el === tabBar || shopNodes.includes(el)) return;
+        if (ctaNode && el === ctaNode) return;
+        aboutPane.appendChild(el);
+      });
+      shopNodes.forEach(el => sc.appendChild(el));
+      if (ctaNode) aboutPane.appendChild(ctaNode);
+      sc.appendChild(aboutPane);
+      const showShop = shopNodes.every(el => el.style.display !== 'none');
+      const applyTab = (tab) => {
+        tabBar.querySelectorAll('.shop-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        const show = tab === 'shop';
+        shopNodes.forEach(el => { el.style.display = show ? '' : 'none'; });
+        aboutPane.style.display = show ? 'none' : 'flex';
+        sc.scrollTop = 0;
+      };
+      tabBar.querySelectorAll('.shop-tab-btn').forEach(b => {
+        b.addEventListener('click', (e) => {
+          if (e) e.stopPropagation();
+          applyTab(b.dataset.tab);
+          playBeep(600, 'sine', 0.06);
+        });
+      });
+      applyTab(showShop ? 'shop' : 'shop');
+    })();
     function renderShopPumps() {
       const grid = document.getElementById('shopPumpsGrid');
       if (!grid) return;
