@@ -7339,6 +7339,17 @@
     setInterval(() => { if (myShop.stock.length) broadcastShop(); }, 15000);
     const myPlayerId = 'cat_' + Math.random().toString(36).substr(2, 6);
     const remotePlayers = {};
+    // Persistent client id: server uses it to tell brand-new players from returning ones
+    let clientUuid = '';
+    try {
+      clientUuid = localStorage.getItem('client_uuid') || '';
+      if (!clientUuid) {
+        clientUuid = 'u' + Date.now().toString(36) + Math.random().toString(36).substr(2, 8);
+        localStorage.setItem('client_uuid', clientUuid);
+      }
+    } catch (e) {
+      clientUuid = 'u' + Math.random().toString(36).substr(2, 10);
+    }
 
     /* NETWORK LAYER: WebSocket (real online) + BroadcastChannel (local tabs fallback) */
     let roomChannel = null;
@@ -7354,13 +7365,32 @@
     function getWsUrl() {
       try {
         const q = new URLSearchParams(window.location.search).get('ws');
-        if (q) return q;
+        if (q) {
+          try { localStorage.setItem('ws_url', q); } catch (e) {}
+          return q;
+        }
         if (window.GAME_WS_URL) return window.GAME_WS_URL;
+        const saved = localStorage.getItem('ws_url');
+        if (saved) return saved;
       } catch (e) {}
       if (window.location.protocol === 'file:') return null;
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       if (!window.location.host) return null;
       return `${proto}//${window.location.host}/ws`;
+    }
+
+    let wsFails = 0;
+    function noteWsFail() {
+      wsFails += 1;
+      if (wsFails === 3) {
+        let explicit = '';
+        try {
+          explicit = new URLSearchParams(window.location.search).get('ws') || localStorage.getItem('ws_url') || '';
+        } catch (e) {}
+        if (!explicit) {
+          showSpeechBubble('No server link! Open as .../chuv.html?ws=wss://YOUR-SERVER/ws 🛰️', 8000);
+        }
+      }
     }
 
     function connectServer() {
@@ -7375,6 +7405,14 @@
       serverSocket.onopen = () => {
         serverConnected = true;
         updateOnlineBadge();
+        try {
+          serverSocket.send(JSON.stringify({
+            action: 'hello',
+            senderId: myPlayerId,
+            cid: clientUuid,
+            cname: (typeof catName === 'string') ? catName : ''
+          }));
+        } catch (e) {}
         broadcastState('join');
       };
       serverSocket.onmessage = (event) => {
@@ -7386,6 +7424,7 @@
       serverSocket.onclose = () => {
         serverConnected = false;
         updateOnlineBadge();
+        if (typeof noteWsFail === 'function') noteWsFail();
         setTimeout(connectServer, 3000);
       };
       serverSocket.onerror = () => { try { serverSocket.close(); } catch(e){} };
@@ -7404,6 +7443,7 @@
       const packet = {
         action: action,
         senderId: myPlayerId,
+        cid: (typeof clientUuid === 'string') ? clientUuid : '',
         x: Math.round(posX),
         y: Math.round(posY),
         isAdmin: isAdmin,
@@ -7438,6 +7478,25 @@
 
       if (msg.action === 'online') {
         updateOnlineBadge(msg.online);
+        return;
+      }
+      if (msg.action === 'welcome') {
+        // Server registered us: brand-new player or returning one
+        if (msg.isNew) {
+          showSpeechBubble('Registered as a new player! ✅', 3500);
+          appendChatLogLine('🛰️ Server', 'Registered you as a brand-new player ✅', false);
+        }
+        return;
+      }
+      if (msg.action === 'player_new') {
+        // Authoritative: a brand-new player arrived
+        updateRemotePlayer(msg);
+        const nm = (typeof msg.cname === 'string' && msg.cname) ? msg.cname.slice(0, 12) : '';
+        showRemoteSpeechBubble(msg.senderId, 'Hi everyone! 🐾');
+        appendChatLogLine('🛰️ Server', `New player ${nm || 'Cat'} joined! 🎉`, false);
+        try {
+          speakText(nm ? `New player ${nm} joined` : 'A brand-new player joined');
+        } catch (e) {}
         return;
       }
       if (msg.action === 'join' || msg.action === 'move' || msg.action === 'tool') {
@@ -7568,11 +7627,14 @@
           lastSeen: Date.now()
         };
         remotePlayers[id] = remote;
-        // Voice: announce newcomers once
-        try {
-          const nm = (typeof data.cname === 'string' && data.cname) ? data.cname.slice(0, 12) : '';
-          speakText(nm ? `${nm} joined the game` : 'A new cat joined the game');
-        } catch (e) {}
+        // Voice: server announces newcomers authoritatively (player_new);
+        // without server, announce on first sight (local tabs mode)
+        if (!serverConnected) {
+          try {
+            const nm0 = (typeof data.cname === 'string' && data.cname) ? data.cname.slice(0, 12) : '';
+            speakText(nm0 ? `${nm0} joined the game` : 'A new cat joined the game');
+          } catch (e) {}
+        }
       }
       if (remote.pick) remote.pick.style.display = (!data.tool || data.tool === 'pick') ? '' : 'none';
       if (remote.rname) {
@@ -7590,8 +7652,8 @@
       }
 
       remote.lastSeen = Date.now();
-      remote.element.style.left = `${data.x}px`;
-      remote.element.style.top = `${data.y}px`;
+      remote.element.style.left = `${data.x || 0}px`;
+      remote.element.style.top = `${data.y || 0}px`;
 
       if (data.isSitting) {
         remote.element.classList.add('sitting');

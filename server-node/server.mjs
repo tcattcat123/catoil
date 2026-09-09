@@ -53,7 +53,7 @@ function serveStatic(req, res) {
   }
   if (url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ ok: true, online: clients.size }));
+    res.end(JSON.stringify({ ok: true, online: clients.size, known: registry.size }));
     return;
   }
   // No dotfiles / no traversal: confine to ROOT.
@@ -78,6 +78,45 @@ function serveStatic(req, res) {
 const server = http.createServer(serveStatic);
 const wss = new WebSocketServer({ path: "/ws", server });
 const clients = new Set();
+
+// Player registry: cid -> { firstSeen, lastSeen, name }.
+// Lets everyone know for sure whether an arrival is a BRAND-NEW player.
+// Persisted to registry.json so restarts don't reset it.
+const REGISTRY_FILE = path.join(ROOT, "server-node", "registry.json");
+const registry = new Map();
+try {
+  const raw = fs.readFileSync(REGISTRY_FILE, "utf8");
+  for (const [cid, rec] of Object.entries(JSON.parse(raw))) {
+    if (cid && rec) registry.set(cid, rec);
+  }
+  console.log(`[REG] loaded ${registry.size} known players`);
+} catch {
+  /* first run */
+}
+let saveTimer = null;
+function saveRegistry() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      fs.writeFileSync(REGISTRY_FILE, JSON.stringify(Object.fromEntries(registry)));
+    } catch (err) {
+      console.log("[REG] save failed:", err.message);
+    }
+  }, 500);
+}
+
+function send(ws, obj) {
+  if (ws.readyState === 1) {
+    try {
+      ws.send(JSON.stringify(obj));
+      return true;
+    } catch {
+      clients.delete(ws);
+    }
+  }
+  return false;
+}
 
 function broadcastOnline() {
   const msg = JSON.stringify({ action: "online", online: clients.size });
@@ -105,6 +144,50 @@ wss.on("connection", (ws) => {
 
   ws.on("message", (data) => {
     const text = data.toString();
+    let msg = null;
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      /* non-JSON: relay as-is */
+    }
+
+    // Newcomer registration: first hello with an unknown cid = brand-new player.
+    if (msg && msg.action === "hello" && msg.cid) {
+      const now = Date.now();
+      const known = registry.get(msg.cid);
+      if (!known) {
+        registry.set(msg.cid, {
+          firstSeen: now,
+          lastSeen: now,
+          name: String(msg.cname || "").slice(0, 12),
+        });
+        saveRegistry();
+        console.log(`[REG] NEW player ${msg.cid} (${msg.cname || "nameless"})`);
+        send(ws, { action: "welcome", isNew: true });
+        const announce = JSON.stringify({
+          action: "player_new",
+          senderId: msg.senderId,
+          cid: msg.cid,
+          cname: String(msg.cname || "").slice(0, 12),
+        });
+        for (const c of [...clients]) {
+          if (c === ws || c.readyState !== 1) continue;
+          try {
+            c.send(announce);
+          } catch {
+            clients.delete(c);
+          }
+        }
+      } else {
+        known.lastSeen = now;
+        if (msg.cname) known.name = String(msg.cname).slice(0, 12);
+        saveRegistry();
+        send(ws, { action: "welcome", isNew: false });
+      }
+      broadcastOnline();
+      return; // hello is consumed, not relayed
+    }
+
     for (const c of [...clients]) {
       if (c === ws || c.readyState !== 1) continue;
       try {
