@@ -81,6 +81,28 @@
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
+    /* Swaying pixel grass tufts all over the map */
+    .grass-tuft {
+      position: absolute;
+      z-index: 3;
+      pointer-events: none;
+      image-rendering: pixelated;
+    }
+    .grass-tuft svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      shape-rendering: crispEdges;
+    }
+    .tuft-sway {
+      transform-box: fill-box;
+      transform-origin: bottom center;
+      animation: tuftSway 2.6s ease-in-out infinite alternate;
+    }
+    @keyframes tuftSway {
+      from { transform: rotate(-5deg); }
+      to { transform: rotate(5deg); }
+    }
     /* Stone clearings removed — solid zem.png ground.
        4 main roads to the fountain: tiny light-gray / gray pixels. */
     .stone-clearing {
@@ -673,8 +695,8 @@
       100% { transform: translateY(-26px); opacity: 0; }
     }
     .oak-tree {
-      width: 120px;
-      height: 120px;
+      width: 176px;
+      height: 176px;
       z-index: 15;
       filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
     }
@@ -2578,7 +2600,73 @@
       margin-bottom: 6px;
     }
 
-    /* Personal Shop: pump showcase cards */
+    /* My stall: sign editor, stock rows, remote stalls */
+    .stall-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .stall-row input {
+      width: 52px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .stall-mini-btn {
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .stall-mini-btn.red {
+      background: #ef4444;
+    }
+    .stall-mini-btn:disabled {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+    .remote-stall {
+      position: absolute;
+      width: 44px;
+      z-index: 28;
+      cursor: pointer;
+      text-align: center;
+    }
+    .remote-stall img {
+      width: 100%;
+      display: block;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 3px 5px rgba(0,0,0,0.4));
+    }
+    .remote-stall .remote-stall-sign {
+      background: rgba(15, 23, 42, 0.85);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 1px 5px;
+      white-space: nowrap;
+      max-width: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 0 auto 2px;
+    }
     .pump-shop-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -2770,6 +2858,7 @@
         <button type="button" class="btn-nav hidden" id="btnCraftPump" title="Build pump: 5 wood + 3 iron">🔧 Pump!</button>
         <button type="button" class="btn-nav" id="btnHitOil" title="Hit">⛏️ Hit!</button>
         <button type="button" class="btn-nav" id="btnToolToggle" title="Switch: pickaxe / paws">🐾</button>
+        <button type="button" class="btn-nav" id="btnPlaceShop" title="Place your stall here">🏪</button>
       </div>
     </div>
 
@@ -3424,6 +3513,24 @@
           I take a raw product, launch it lean, bring it to stable revenue, and scale it.
         </div>
 
+        <!-- MY STALL: sign, inventory, listings -->
+        <div>
+          <div class="resume-section-title">🏪 MY STALL</div>
+          <div class="form-group">
+            <label class="form-label">Sign text:</label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="shopSignInput" class="form-input" maxlength="24" placeholder="My stall" style="flex:1;" />
+              <button type="button" class="stall-mini-btn" id="btnSaveSign">OK</button>
+            </div>
+          </div>
+          <div class="stall-row" id="stallInvRow">📦 ...</div>
+          <div id="stallListRows"></div>
+          <div class="resume-section-title" style="margin-top:10px;">🏷️ FOR SALE</div>
+          <div id="stallStockList"></div>
+          <div class="resume-section-title" style="margin-top:10px;">🛍️ OTHER STALLS</div>
+          <div id="remoteStallsList"><div class="context-note">No other stalls nearby yet.</div></div>
+        </div>
+
         <!-- PUMPS: level 1-5 showcase -->
         <div>
           <div class="resume-section-title">🔧 PUMPS</div>
@@ -3509,6 +3616,17 @@
       <div class="modal-scroll-content" id="adminLeadsListContainer">
         <!-- Dynamically rendered list of leads -->
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BUY FROM ANOTHER STALL -->
+  <div class="shop-modal-overlay hidden" id="modalBuyOverlay">
+    <div class="mac-retro-modal lead-modal-box">
+      <div class="modal-titlebar">
+        <span id="buyModalTitle">🛍️ Stall</span>
+        <button class="modal-close-btn" id="btnCloseBuyModal">✕</button>
+      </div>
+      <div class="modal-scroll-content" id="buyListContainer"></div>
     </div>
   </div>
 
@@ -3751,6 +3869,54 @@
     cacheFishPos();
     window.addEventListener('resize', () => { cacheFishPos(); updateCamera(); });
 
+    /* Isometric depth: cat walks BEHIND tall trees, in front when below them */
+    const depthObjs = [];
+    document.querySelectorAll('.oak-tree,.snowy-palm-tree').forEach(el => depthObjs.push(el));
+    function updateDepth() {
+      const feetY = posY + 8;
+      for (const el of depthObjs) {
+        const base = el.offsetTop + el.offsetHeight;
+        el.style.zIndex = feetY < base - 24 ? '60' : '';
+      }
+    }
+
+    /* Swaying pixel grass tufts (not on roads/plaza) */
+    const TUFT_SVGS = [
+      `<svg viewBox="0 0 16 16" width="100%" height="100%"><g class="tuft-sway"><rect x="3" y="6" width="2" height="10" fill="#4f9c33"/><rect x="6" y="3" width="2" height="13" fill="#63ad3e"/><rect x="9" y="7" width="2" height="9" fill="#3a7d24"/><rect x="11" y="5" width="2" height="11" fill="#4f9c33"/></g></svg>`,
+      `<svg viewBox="0 0 16 16" width="100%" height="100%"><g class="tuft-sway"><rect x="2" y="8" width="2" height="8" fill="#63ad3e"/><rect x="5" y="4" width="2" height="12" fill="#4f9c33"/><rect x="8" y="6" width="2" height="10" fill="#3a7d24"/><rect x="11" y="8" width="2" height="8" fill="#63ad3e"/><rect x="13" y="10" width="2" height="6" fill="#4f9c33"/></g></svg>`,
+      `<svg viewBox="0 0 16 16" width="100%" height="100%"><g class="tuft-sway"><rect x="4" y="4" width="2" height="12" fill="#3a7d24"/><rect x="7" y="7" width="2" height="9" fill="#63ad3e"/><rect x="10" y="3" width="2" height="13" fill="#4f9c33"/></g></svg>`
+    ];
+    function isOnRoad(x, y) {
+      if (x >= -6 && x <= 1566 && y >= 764 && y <= 926) return true;
+      if (x >= 604 && x <= 786) return true;
+      if (Math.hypot(x - 695, y - 845) < 135) return true;
+      return false;
+    }
+    (function scatterTufts() {
+      let placed = 0, guard = 0;
+      while (placed < 70 && guard++ < 900) {
+        const x = 20 + Math.random() * (MAP_W - 40);
+        const y = 60 + Math.random() * (MAP_H - 120);
+        if (isOnRoad(x, y)) continue;
+        const t = document.createElement('div');
+        t.className = 'map-decor grass-tuft';
+        const s = 14 + Math.floor(Math.random() * 10);
+        t.style.left = `${Math.round(x)}px`;
+        t.style.top = `${Math.round(y)}px`;
+        t.style.width = `${s}px`;
+        t.style.height = `${s}px`;
+        t.innerHTML = TUFT_SVGS[placed % TUFT_SVGS.length];
+        const g = t.querySelector('.tuft-sway');
+        if (g) {
+          g.style.animationDuration = `${(2 + Math.random() * 1.6).toFixed(2)}s`;
+          g.style.animationDelay = `${(-Math.random() * 2).toFixed(2)}s`;
+        }
+        if (Math.random() < 0.5) t.style.transform = 'scaleX(-1)';
+        map.appendChild(t);
+        placed++;
+      }
+    })();
+
     // Audio Engine
     let audioCtx = null;
     function playBeep(freq = 500, type = 'sine', duration = 0.08) {
@@ -3868,6 +4034,7 @@
         setTimeout(playFanfare, 250);
         if (modalShopOverlay) modalShopOverlay.classList.remove('hidden');
         if (typeof renderShopPumps === 'function') renderShopPumps();
+        if (typeof renderStall === 'function') renderStall();
       };
 
       createTapMarker(targetX, targetY);
@@ -4466,6 +4633,7 @@
         if (typeof setWalkView === 'function') setWalkView(kx, ky);
         updatePlayerPos(posX, posY);
         checkCollisions();
+        if (typeof updateDepth === 'function') updateDepth();
         requestAnimationFrame(gameLoop);
         return;
       }
@@ -4481,6 +4649,7 @@
         isMoving = false;
         player.classList.remove('walking');
         if (typeof refreshFrontSprite === 'function') refreshFrontSprite();
+        if (typeof updateDepth === 'function') updateDepth();
 
         if (activeCallback) {
           const cb = activeCallback;
@@ -4507,6 +4676,7 @@
       updatePlayerPos(posX, posY);
 
       checkCollisions();
+      if (typeof updateDepth === 'function') updateDepth();
       requestAnimationFrame(gameLoop);
     }
 
@@ -5611,6 +5781,7 @@
       playFanfare();
       showSpeechBubble(catName ? `Hi! I'm ${catName}! 🐾` : 'Hi! 🐾', 3500);
       if (typeof broadcastState === 'function') broadcastState('join');
+      if (typeof broadcastShop === 'function') broadcastShop();
     });
 
     /* ⛏️🪵 RESOURCES: wood, iron, oil + pump levels 1-5 */
@@ -6243,10 +6414,304 @@
     // First counters paint (deferred: needs PUMP_LEVELS + shop grid ready)
     updateResUI();
 
-    /* ==========================================================================
-       MULTI-PLAYER ENGINE: Node WS server (server-node) + BroadcastChannel fallback 🌐🐱
-       WS URL: ?ws=wss://host/ws  >  window.GAME_WS_URL  >  same-host /ws
-       ========================================================================== */
+    /* 🏪 MY STALL: placeable shop, sign text, stock, NPC buyers, remote trade */
+    let myShop = { x: 320, y: 430, sign: '🏪 Personal Shop', stock: [] };
+    try {
+      const _ss = JSON.parse(localStorage.getItem('my_shop') || 'null');
+      if (_ss && typeof _ss.x === 'number' && typeof _ss.y === 'number') {
+        myShop = {
+          x: Math.round(_ss.x), y: Math.round(_ss.y),
+          sign: String(_ss.sign || '🏪 Personal Shop').slice(0, 24) || '🏪 Personal Shop',
+          stock: Array.isArray(_ss.stock) ? _ss.stock.filter(l => l && l.type && l.qty > 0 && l.price > 0) : []
+        };
+      }
+    } catch (e) {}
+    const RES_META = {
+      wood: { icon: '🪵', name: 'Wood' },
+      iron: { icon: '⛓️', name: 'Iron' },
+      oil: { icon: '🛢️', name: 'Oil' }
+    };
+    function saveShop() {
+      try { localStorage.setItem('my_shop', JSON.stringify(myShop)); } catch (e) {}
+    }
+    function applyShopPos() {
+      if (resumeShop) {
+        resumeShop.style.left = myShop.x + 'px';
+        resumeShop.style.top = myShop.y + 'px';
+      }
+      const sign = document.querySelector('.shop-sign-floating');
+      if (sign) sign.textContent = myShop.sign;
+      const si = document.getElementById('shopSignInput');
+      if (si && document.activeElement !== si) si.value = myShop.sign;
+    }
+    function broadcastShop() {
+      if (typeof broadcastState === 'function') {
+        broadcastState('shop_stock', { sign: myShop.sign, sx: myShop.x, sy: myShop.y, items: myShop.stock });
+      }
+    }
+    applyShopPos();
+
+    const btnPlaceShop = document.getElementById('btnPlaceShop');
+    if (btnPlaceShop) btnPlaceShop.addEventListener('click', (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      myShop.x = Math.round(Math.min(Math.max(posX, 30), MAP_W - 30));
+      myShop.y = Math.round(Math.min(Math.max(posY, 60), MAP_H - 30));
+      applyShopPos();
+      saveShop();
+      broadcastShop();
+      playBeep(600, 'sine', 0.1);
+      showSpeechBubble('Stall placed! 🏪', 2500);
+    });
+
+    const btnSaveSign = document.getElementById('btnSaveSign');
+    if (btnSaveSign) btnSaveSign.addEventListener('click', (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      const si = document.getElementById('shopSignInput');
+      myShop.sign = (si && si.value.trim().slice(0, 24)) || '🏪 Personal Shop';
+      applyShopPos();
+      saveShop();
+      broadcastShop();
+      playBeep(700, 'sine', 0.08);
+    });
+
+    function resCount(t) { return t === 'wood' ? woodCount : t === 'iron' ? ironCount : oilCount; }
+    function takeRes(t, n) {
+      if (t === 'wood') woodCount = Math.max(0, woodCount - n);
+      else if (t === 'iron') ironCount = Math.max(0, ironCount - n);
+      else oilCount = Math.max(0, oilCount - n);
+      saveRes();
+      updateResUI();
+    }
+    function renderStall() {
+      const inv = document.getElementById('stallInvRow');
+      if (inv) inv.textContent = `📦 You: 🪵 ${woodCount} · ⛓️ ${ironCount} · 🛢️ ${oilCount} · 🪙 ${score}`;
+      const rows = document.getElementById('stallListRows');
+      if (rows) {
+        rows.innerHTML = ['wood', 'iron', 'oil'].map(t => {
+          const m = RES_META[t];
+          return `<div class="stall-row"><span>${m.icon} ${m.name} (have ${resCount(t)})</span>`
+            + `<input type="number" id="listQty_${t}" value="1" min="1" />`
+            + `<input type="number" id="listPrice_${t}" value="10" min="1" title="Price in coins" />`
+            + `<button type="button" class="stall-mini-btn" data-list="${t}">List</button></div>`;
+        }).join('');
+        rows.querySelectorAll('[data-list]').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            if (ev) ev.stopPropagation();
+            listItem(btn.getAttribute('data-list'));
+          });
+        });
+      }
+      const sl = document.getElementById('stallStockList');
+      if (sl) {
+        sl.innerHTML = myShop.stock.length ? myShop.stock.map(l => {
+          const m = RES_META[l.type] || RES_META.wood;
+          return `<div class="stall-row"><span>${l.qty}× ${m.icon} — ${l.price}🪙 each</span>`
+            + `<button type="button" class="stall-mini-btn red" data-unlist="${l.id}">Take back</button></div>`;
+        }).join('') : '<div class="context-note">Nothing listed yet.</div>';
+        sl.querySelectorAll('[data-unlist]').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            if (ev) ev.stopPropagation();
+            unlistItem(Number(btn.getAttribute('data-unlist')));
+          });
+        });
+      }
+      const rl = document.getElementById('remoteStallsList');
+      if (rl) {
+        const entries = Object.entries(remotePlayers).filter(([, r]) => r && r.stall && r.stall.items && r.stall.items.length);
+        rl.innerHTML = entries.length ? entries.map(([id, r]) => {
+          const nm = (r.stall.cname || 'Cat').slice(0, 12);
+          return `<div class="stall-row"><span>🏪 ${escapeHtml(nm)}: ${escapeHtml(r.stall.sign || '')} (${r.stall.items.length} lots)</span>`
+            + `<button type="button" class="stall-mini-btn" data-open-stall="${id}">Open</button></div>`;
+        }).join('') : '<div class="context-note">No other stalls nearby yet.</div>';
+        rl.querySelectorAll('[data-open-stall]').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            if (ev) ev.stopPropagation();
+            openBuyModal(btn.getAttribute('data-open-stall'));
+          });
+        });
+      }
+    }
+    function listItem(type) {
+      const q = document.getElementById('listQty_' + type);
+      const p = document.getElementById('listPrice_' + type);
+      const qty = Math.max(1, parseInt((q && q.value) || '1', 10) || 1);
+      const price = Math.max(1, parseInt((p && p.value) || '1', 10) || 1);
+      if (qty > resCount(type)) {
+        playBeep(200, 'sawtooth', 0.1);
+        showSpeechBubble(`Not enough ${RES_META[type].name}!`, 1800);
+        return;
+      }
+      takeRes(type, qty);
+      myShop.stock.push({ id: Date.now() + Math.floor(Math.random() * 1000), type, qty, price });
+      saveShop();
+      broadcastShop();
+      playBeep(750, 'sine', 0.08);
+      renderStall();
+    }
+    function unlistItem(id) {
+      const i = myShop.stock.findIndex(l => Number(l.id) === Number(id));
+      if (i === -1) return;
+      const [l] = myShop.stock.splice(i, 1);
+      if (l.type === 'wood') addWood(l.qty);
+      else if (l.type === 'iron') addIron(l.qty);
+      else addOil(l.qty);
+      saveShop();
+      broadcastShop();
+      renderStall();
+    }
+
+    // NPC customer: buys random stock every ~50s (market simulation)
+    setInterval(() => {
+      const lines = myShop.stock.filter(l => l.qty > 0);
+      if (!lines.length) return;
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      const n = 1 + Math.floor(Math.random() * Math.min(3, line.qty));
+      line.qty -= n;
+      if (line.qty <= 0) myShop.stock = myShop.stock.filter(l => l !== line);
+      score += line.price * n;
+      if (coinCounter) coinCounter.textContent = `🪙 ${score}`;
+      saveShop();
+      broadcastShop();
+      renderStall();
+      const m = RES_META[line.type] || RES_META.wood;
+      playBeep(950, 'square', 0.1);
+      showSpeechBubble(`Sold ${n}× ${m.icon} +${line.price * n}🪙!`, 2500);
+      appendChatLogLine('🧺 Market', `bought ${n}× ${m.icon} for ${line.price * n}🪙`, false);
+    }, 50000);
+
+    // Remote stalls on the map + buying
+    const modalBuyOverlay = document.getElementById('modalBuyOverlay');
+    const buyListContainer = document.getElementById('buyListContainer');
+    const buyModalTitle = document.getElementById('buyModalTitle');
+    const btnCloseBuyModal = document.getElementById('btnCloseBuyModal');
+    if (btnCloseBuyModal) btnCloseBuyModal.addEventListener('click', () => {
+      if (modalBuyOverlay) modalBuyOverlay.classList.add('hidden');
+    });
+    let pendingBuy = null;
+    function renderRemoteStall(id) {
+      const r = remotePlayers[id];
+      if (!r || !r.element) return;
+      if (!r.stallEl) {
+        const el = document.createElement('div');
+        el.className = 'remote-stall';
+        el.innerHTML = `<div class="remote-stall-sign"></div><img src="shop.png" alt="stall" />`;
+        el.addEventListener('pointerdown', (e) => {
+          if (e) e.stopPropagation();
+          openBuyModal(id);
+        });
+        map.appendChild(el);
+        r.stallEl = el;
+      }
+      r.stallEl.querySelector('.remote-stall-sign').textContent =
+        ((r.stall && r.stall.cname) || 'Cat').slice(0, 10) + ' · ' + ((r.stall && r.stall.sign) || '🏪');
+      r.stallEl.style.left = ((r.stall && r.stall.x) || r.x || 0) + 'px';
+      r.stallEl.style.top = (((r.stall && r.stall.y) || r.y || 0) - 70) + 'px';
+    }
+    function openBuyModal(id) {
+      const r = remotePlayers[id];
+      if (!r || !r.stall || !r.stall.items || !r.stall.items.length) {
+        playBeep(200, 'sawtooth', 0.1);
+        return;
+      }
+      if (buyModalTitle) buyModalTitle.textContent = `🛍️ ${((r.stall.cname) || 'Cat').slice(0, 12)} — ${r.stall.sign || '🏪'}`;
+      buyListContainer.innerHTML = r.stall.items.map(l => {
+        const m = RES_META[l.type] || RES_META.wood;
+        return `<div class="stall-row"><span>${l.qty}× ${m.icon} ${m.name} — ${l.price}🪙</span>`
+          + `<button type="button" class="stall-mini-btn" data-buy-line="${l.id}" data-buy-from="${id}">Buy 1</button></div>`;
+      }).join('');
+      buyListContainer.querySelectorAll('[data-buy-line]').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          if (ev) ev.stopPropagation();
+          sendBuyRequest(btn.getAttribute('data-buy-from'), Number(btn.getAttribute('data-buy-line')));
+        });
+      });
+      if (modalBuyOverlay) modalBuyOverlay.classList.remove('hidden');
+    }
+    function sendBuyRequest(sellerId, lineId) {
+      const r = remotePlayers[sellerId];
+      if (!r || !r.stall) return;
+      if (Date.now() - (r.lastSeen || 0) > 20000) {
+        showSpeechBubble('Seller is offline 😴', 2000);
+        return;
+      }
+      const line = (r.stall.items || []).find(l => Number(l.id) === Number(lineId));
+      if (!line || line.qty < 1) return;
+      if (score < line.price) {
+        playBeep(200, 'sawtooth', 0.1);
+        showSpeechBubble('Not enough coins! 🪙', 1800);
+        return;
+      }
+      pendingBuy = { to: sellerId, lineId, price: line.price, type: line.type, at: Date.now() };
+      netSend({ action: 'buy_req', senderId: myPlayerId, to: sellerId, lineId, x: Math.round(posX), y: Math.round(posY) });
+      setTimeout(() => {
+        if (pendingBuy && pendingBuy.to === sellerId && pendingBuy.lineId === lineId) {
+          pendingBuy = null;
+          showSpeechBubble('Seller is silent... 😴', 2000);
+        }
+      }, 6000);
+    }
+    function handleBuyPackets(msg) {
+      if (!msg || msg.senderId === myPlayerId) return false;
+      if (msg.action === 'shop_stock') {
+        updateRemotePlayer(msg);
+        const r = remotePlayers[msg.senderId];
+        if (r) {
+          r.stall = {
+            sign: String(msg.sign || '🏪').slice(0, 24),
+            x: msg.sx, y: msg.sy,
+            items: Array.isArray(msg.items) ? msg.items : [],
+            cname: (typeof msg.cname === 'string') ? msg.cname : ''
+          };
+          if (r.stall.items.length) renderRemoteStall(msg.senderId);
+          else if (r.stallEl) { r.stallEl.remove(); r.stallEl = null; }
+          renderStall();
+        }
+        return true;
+      }
+      if (msg.action === 'buy_req') {
+        if (msg.to !== myPlayerId) return true;
+        const line = myShop.stock.find(l => Number(l.id) === Number(msg.lineId));
+        if (line && line.qty > 0) {
+          line.qty -= 1;
+          if (line.qty <= 0) myShop.stock = myShop.stock.filter(l => l !== line);
+          score += line.price;
+          if (coinCounter) coinCounter.textContent = `🪙 ${score}`;
+          saveShop();
+          broadcastShop();
+          renderStall();
+          playBeep(950, 'square', 0.1);
+          netSend({ action: 'buy_ok', senderId: myPlayerId, to: msg.senderId, type: line.type, price: line.price });
+        } else {
+          netSend({ action: 'buy_denied', senderId: myPlayerId, to: msg.senderId });
+        }
+        return true;
+      }
+      if (msg.action === 'buy_ok') {
+        if (msg.to !== myPlayerId || !pendingBuy) return true;
+        if (msg.type === pendingBuy.type && msg.price === pendingBuy.price) {
+          pendingBuy = null;
+          score = Math.max(0, score - msg.price);
+          if (coinCounter) coinCounter.textContent = `🪙 ${score}`;
+          if (msg.type === 'wood') addWood(1);
+          else if (msg.type === 'iron') addIron(1);
+          else addOil(1);
+          playFanfare();
+          showSpeechBubble('Bought! 🎉', 2000);
+          if (modalBuyOverlay) modalBuyOverlay.classList.add('hidden');
+        }
+        return true;
+      }
+      if (msg.action === 'buy_denied') {
+        if (msg.to === myPlayerId && pendingBuy) {
+          pendingBuy = null;
+          showSpeechBubble('Sold out! 😿', 2000);
+        }
+        return true;
+      }
+      return false;
+    }
+    // Heartbeat: let others see the stall even when idle
+    setInterval(() => { if (myShop.stock.length) broadcastShop(); }, 15000);
     const myPlayerId = 'cat_' + Math.random().toString(36).substr(2, 6);
     const remotePlayers = {};
 
@@ -6343,6 +6808,8 @@
     // Unified incoming-message handler (WebSocket + BroadcastChannel)
     function handleNetMessage(msg) {
       if (!msg || msg.senderId === myPlayerId) return;
+
+      if (typeof handleBuyPackets === 'function' && handleBuyPackets(msg)) return;
 
       if (msg.action === 'online') {
         updateOnlineBadge(msg.online);
@@ -6526,7 +6993,7 @@
 
       // Shop & Table Signs
       const shopSign = document.querySelector('.shop-sign-floating');
-      if (shopSign) shopSign.textContent = "🏪 Personal Shop";
+      if (shopSign) shopSign.textContent = (typeof myShop !== 'undefined' && myShop.sign) ? myShop.sign : "🏪 Personal Shop";
 
       const tableSign = document.querySelector('.table-sign-floating');
       if (tableSign) tableSign.textContent = "negotiation table";
