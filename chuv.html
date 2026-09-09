@@ -5048,15 +5048,16 @@
       const stain = document.createElement('div');
       stain.className = 'oil-stain';
       node.appendChild(stain);
-      // Nickname marks OIL fountains only
-      if (hasOil && owner) {
+      // Nickname marks OIL fountains only (fallback for nameless cats)
+      if (hasOil) {
+        const who = String(owner || '').slice(0, 12) || 'stray cat';
         const tag = document.createElement('div');
         tag.className = 'oil-owner';
-        tag.textContent = String(owner).slice(0, 12);
+        tag.textContent = who;
         node.appendChild(tag);
         const by = document.createElement('div');
         by.className = 'oil-by';
-        by.textContent = 'oil by ' + String(owner).slice(0, 12);
+        by.textContent = 'oil by ' + who;
         node.appendChild(by);
       }
       node.dataset.oil = hasOil ? '1' : '';
