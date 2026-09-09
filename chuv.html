@@ -3073,6 +3073,7 @@
         <button type="button" class="btn-nav" id="btnToolToggle" title="Switch: pickaxe / paws">🐾</button>
         <button type="button" class="btn-nav" id="btnPlaceShop" title="Place your stall here">🏪</button>
         <button type="button" class="btn-nav" id="btnMarket" title="Resource market">🛒</button>
+        <button type="button" class="btn-nav" id="btnMusic" title="Music on/off">🔊</button>
       </div>
     </div>
 
@@ -6092,6 +6093,7 @@
       applyLocalSkin();
       if (genOverlay) genOverlay.classList.add('hidden');
       playFanfare();
+      if (typeof startMusic === 'function') startMusic();
       showSpeechBubble(catName ? `Hi! I'm ${catName}! 🐾` : 'Hi! 🐾', 3500);
       if (typeof broadcastState === 'function') broadcastState('join');
       if (typeof broadcastShop === 'function') broadcastShop();
@@ -6914,6 +6916,49 @@
         if (pr && pr.catch) pr.catch(() => {});
       } catch (e) {}
     }
+    /* Game melody: Meadow Dreams (loops after entering the world) */
+    let musicAudio = null;
+    let musicOn = true;
+    try {
+      musicOn = localStorage.getItem('music_on') !== '0';
+      musicAudio = new Audio('sounds/meadow-dreams.mp3');
+      musicAudio.preload = 'auto';
+      musicAudio.loop = true;
+      musicAudio.volume = 0.25;
+    } catch (e) {
+      musicAudio = null;
+    }
+    const btnMusic = document.getElementById('btnMusic');
+    function applyMusicUI() {
+      if (btnMusic) {
+        btnMusic.textContent = (musicAudio && musicOn) ? '🔊' : '🔇';
+        btnMusic.title = musicOn ? 'Music on' : 'Music off';
+      }
+    }
+    function startMusic() {
+      if (!musicAudio || !musicOn) return;
+      try {
+        const pr = musicAudio.play();
+        if (pr && pr.catch) pr.catch(() => {});
+      } catch (e) {}
+    }
+    if (btnMusic) btnMusic.addEventListener('click', (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      musicOn = !musicOn;
+      try { localStorage.setItem('music_on', musicOn ? '1' : '0'); } catch (err) {}
+      if (musicAudio) {
+        try {
+          if (musicOn) {
+            const pr = musicAudio.play();
+            if (pr && pr.catch) pr.catch(() => {});
+          } else {
+            musicAudio.pause();
+          }
+        } catch (err) {}
+      }
+      applyMusicUI();
+    });
+    applyMusicUI();
     function playKnockSound() {
       if (chopAudio) {
         try {
