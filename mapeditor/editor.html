@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Pixel World — редактор карт</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#151a2b; color:#e8ecf5; height:100vh; display:flex; overflow:hidden; }
+
+  /* ===== Sidebar ===== */
+  #sidebar { width:250px; min-width:250px; background:#20273c; display:flex; flex-direction:column; border-right:2px solid #10141f; z-index:10; }
+  #sidebar h1 { font-size:15px; padding:12px 14px 2px; color:#ffd85e; }
+  #sidebar .sub { font-size:11px; color:#8fa0c5; padding:0 14px 8px; }
+  #tabs { display:flex; border-bottom:1px solid #10141f; }
+  #tabs button { flex:1; background:#2a3350; color:#aebadb; border:none; padding:8px 0; cursor:pointer; font-size:12px; font-weight:600; }
+  #tabs button.active { background:#3a4670; color:#ffd85e; }
+  #palette { flex:1; overflow-y:auto; padding:8px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; align-content:start; }
+  .pal-btn { background:#2a3350; border:2px solid transparent; border-radius:8px; padding:3px; cursor:pointer; text-align:center; }
+  .pal-btn .pv { width:100%; height:52px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:4px; background:#1a2138; }
+  .pal-btn .lbl { font-size:9px; color:#cfd8ea; padding-top:3px; line-height:1.1; }
+  .pal-btn:hover { background:#39456e; }
+  .pal-btn.active { border-color:#ffd85e; background:#45507a; }
+  #brushRow { padding:8px 10px 2px; font-size:11px; color:#8fa0c5; display:flex; gap:6px; align-items:center; }
+  #brushRow button { flex:1; background:#2a3350; color:#cfd8ea; border:none; border-radius:5px; padding:5px 0; cursor:pointer; font-size:11px; }
+  #brushRow button.active { background:#45507a; color:#ffd85e; }
+  #tools { padding:8px 10px 12px; border-top:1px solid #10141f; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  #tools button { background:#2a3350; color:#e8ecf5; border:none; border-radius:6px; padding:8px 4px; cursor:pointer; font-size:11px; }
+  #tools button:hover { background:#39456e; }
+  #tools button.wide { grid-column:1 / -1; }
+  #tools button.danger { background:#5a2e35; }
+  #hint { font-size:10px; color:#66759c; padding:0 12px 10px; line-height:1.4; }
+
+  /* ===== Viewport ===== */
+  #viewport { flex:1; overflow:auto; position:relative; background:#0d1120; }
+  #world { margin:40px; display:inline-block; box-shadow:0 0 0 3px #ffd85e, 0 10px 60px #000; transform-origin:0 0; position:relative;
+           background:#80bd3f url('../zem.jpg'); background-size:800px 450px; image-rendering:pixelated; }
+  #mapCanvas { display:block; image-rendering:pixelated; cursor:crosshair; }
+  #objLayer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .obj-wrap { position:absolute; pointer-events:none; }
+  #zoombar { position:fixed; right:16px; bottom:16px; z-index:20; display:flex; gap:6px; }
+  #zoombar button { width:34px; height:34px; border-radius:6px; border:none; background:#20273c; color:#ffd85e; font-size:16px; cursor:pointer; }
+  #zoombar button:hover { background:#39456e; }
+  #status { position:fixed; left:266px; bottom:12px; z-index:20; font-size:11px; color:#8fa0c5; background:rgba(18,23,43,.9); padding:4px 10px; border-radius:6px; }
+  #toasts { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:30; }
+  .toast { background:#2a3350; color:#ffd85e; padding:8px 16px; border-radius:8px; margin-bottom:6px; font-size:13px; box-shadow:0 4px 16px #000; }
+  #loading { position:fixed; inset:0; background:#151a2b; z-index:50; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; color:#ffd85e; font-size:16px; }
+  #loading .err { color:#ff9b9b; font-size:12px; max-width:420px; text-align:center; line-height:1.5; }
+</style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>🗺️ Редактор карт</h1>
+    <div class="sub">Pixel World · тайлы 32px · спрайты из chuv.html</div>
+    <div id="tabs">
+      <button id="tabTerr" class="active">🌱 Земля</button>
+      <button id="tabObj">🌲 Объекты</button>
+    </div>
+    <div id="palette"></div>
+    <div id="brushRow">Кисть:
+      <button data-b="1" class="active">1</button><button data-b="2">2</button><button data-b="3">4</button><button data-b="4">8</button>
+    </div>
+    <div id="scaleRow" style="display:none; padding:8px 10px 2px; font-size:11px; color:#8fa0c5;">
+      <div style="display:flex; justify-content:space-between;"><span>Размер объекта</span><b id="scaleVal" style="color:#ffd85e">1.0×</b></div>
+      <input id="scaleSlider" type="range" min="0.3" max="3" step="0.1" value="1" style="width:100%; accent-color:#ffd85e;">
+      <div style="display:flex; gap:4px; margin-top:4px;">
+        <button data-s="0.5" style="flex:1; background:#2a3350; color:#cfd8ea; border:none; border-radius:4px; padding:3px 0; cursor:pointer; font-size:10px;">0.5×</button>
+        <button data-s="1" style="flex:1; background:#2a3350; color:#cfd8ea; border:none; border-radius:4px; padding:3px 0; cursor:pointer; font-size:10px;">1×</button>
+        <button data-s="1.5" style="flex:1; background:#2a3350; color:#cfd8ea; border:none; border-radius:4px; padding:3px 0; cursor:pointer; font-size:10px;">1.5×</button>
+        <button data-s="2" style="flex:1; background:#2a3350; color:#cfd8ea; border:none; border-radius:4px; padding:3px 0; cursor:pointer; font-size:10px;">2×</button>
+      </div>
+    </div>
+    <div id="tools">
+      <button id="btnAddCustom" class="wide">➕ Свой предмет (свой SVG/картинка)</button>
+      <button id="btnAddAnim" class="wide">🎞 Своя анимация (PNG-лента)</button>
+      <button id="btnFill" class="wide">🪣 Заливка области (F)</button>
+      <button id="btnExport" class="wide">💾 Экспорт JSON (E)</button>
+      <button id="btnImport" class="wide">📂 Импорт JSON</button>
+      <button id="btnClearTerr">🗑 Стереть землю</button>
+      <button id="btnClearObj" class="danger">🗑 Убрать объекты</button>
+      <input type="file" id="fileInput" accept=".json" style="display:none">
+      <input type="file" id="animFileInput" accept="image/png,image/gif" style="display:none">
+    </div>
+    <div id="hint">ЛКМ — рисовать/ставить · ПКМ — стереть · Колесо — зум · Пробел+drag — панорама</div>
+  </div>
+
+  <div id="viewport">
+    <div id="world">
+      <canvas id="mapCanvas"></canvas>
+      <div id="objLayer"></div>
+    </div>
+  </div>
+
+  <div id="zoombar">
+    <button id="zOut">−</button><button id="zIn">+</button><button id="zFit">⤢</button>
+  </div>
+  <div id="status"></div>
+  <div id="toasts"></div>
+  <div id="loading"><div>⏳ Загружаю спрайты из chuv.html…</div></div>
+
+<script>
+'use strict';
+// ================= ДАННЫЕ =================
+const TILE = 32, GW = 100, GH = 56;
+const T = { GRASS:0, FLOWERS:1, DARK:2, PATH:3, STONE:4, WATER:5, SAND:6 };
+const TERR_INFO = { 0:'Трава', 1:'Трава с цветами', 2:'Тёмная трава', 3:'Дорожка', 4:'Каменная плитка', 5:'Вода', 6:'Песок' };
+
+// объекты берём из игры: decorClass → готовый элемент из HTML игры,
+// svgConst → inline-SVG константа из кода игры (с её CSS-анимациями),
+// inline → свой SVG прямо в редакторе (экспортируется как custom-объект),
+// custom:ключ → загруженная PNG-лента (см. customs ниже).
+const CLIFFS_SVG = `<svg viewBox="0 0 64 48" width="100%" height="100%" shape-rendering="crispEdges">`
+  + `<ellipse cx="32" cy="44" rx="26" ry="4" fill="rgba(0,0,0,0.25)"/>`
+  + `<polygon points="4,44 12,16 24,10 30,22 24,44" fill="#8a8f98" stroke="#3a3f47" stroke-width="1.5"/>`
+  + `<polygon points="12,16 20,12 18,24 10,28" fill="#aab0b8"/>`
+  + `<polygon points="22,44 32,12 44,8 48,24 42,44" fill="#9399a1" stroke="#3a3f47" stroke-width="1.5"/>`
+  + `<polygon points="32,12 40,9 38,22 30,26" fill="#b6bbc2"/>`
+  + `<polygon points="40,44 48,22 58,20 62,32 58,44" fill="#848a93" stroke="#3a3f47" stroke-width="1.5"/>`
+  + `<line x1="30" y1="26" x2="34" y2="38" stroke="#3a3f47" stroke-width="1"/>`
+  + `</svg>`;
+const OBJ_DEFS = {
+  oak:      { name:'Дуб',        decorClass:'oak-tree' },
+  palm:     { name:'Пальма',     decorClass:'snowy-palm-tree' },
+  chick:    { name:'Цыплёнок',   decorClass:'tiny-chick' },
+  fish:     { name:'Рыба',       decorClass:'pixel-fish-item' },
+  table:    { name:'Стол',       decorClass:'negotiation-table-item' },
+  shop:     { name:'Магазин',    decorClass:'pixel-shop' },
+  pond:     { name:'Пруд',       decorClass:'ice-pond' },
+  drift:    { name:'Сугроб',     decorClass:'snow-drift' },
+  cliffs:   { name:'Скалы',      inline:CLIFFS_SVG, wrap:'map-decor cliff-rock', vw:64, vh:48 },
+  flowers:  { name:'Цветы',      svgConst:'FLOWER_SVG',   wrap:'map-decor flora-cluster' },
+  lavender: { name:'Лаванда',    svgConst:'LAVENDER_SVG', wrap:'map-decor flora-cluster flora-lav' },
+  bouquet:  { name:'Букет',      svgConst:'BOUQUET_SVG',  wrap:'map-decor flora-cluster' },
+  flytrap:  { name:'Мухоловка',  svgConst:'FLYTRAP_SVG',  wrap:'map-decor flora-cluster' },
+  indie:    { name:'Инди-цветок',svgConst:'INDIE_SVG',    wrap:'map-decor flora-cluster' },
+  poring:   { name:'Поринг',     svgConst:'PORING_SVG',   wrap:'poring' },
+  iron:     { name:'Железный камень', svgConst:'IRON_SVG', wrap:'iron-rock' },
+  campfire: { name:'Костёр',     svgConst:'CAMPFIRE_SVG', wrap:'campfire' },
+  bones:    { name:'Кости',      svgConst:'BONES_SVG',    wrap:'bones' },
+  spawn:    { name:'Спавн кота', svgConst:'catSvgContent', wrap:'pixel-cat-player' },
+};
+// CSS-классы игры, стили которых подтягиваем (вместе с @keyframes-анимациями).
+// NB: отдельно перечислены классы самих АНИМАЦИЙ (качание, лепестки,
+// бабочки, крона) — иначе объекты в редакторе стоят статично.
+const GAME_CSS_CLASSES = ['oak-tree','snow-tree','snowy-palm-tree','tiny-chick','pixel-fish-item',
+  'negotiation-table-item','pixel-shop','ice-pond','snow-drift','map-decor',
+  'poring','iron-rock','campfire','bones','pixel-cat-player','flora-cluster',
+  'sway','particle','butterfly','anim-chomp','anim-fly','oak-leaf','flame-flick',
+  'oil-jet','oil-drop','oil-stain','dirt-pile','pump-device','anim-pump','anim-piston',
+  'anim-steam','anim-laser','anim-spark','anim-reactor','anim-plasma','anim-gauge',
+  'anim-jelly','anim-bubble','anim-grass','anim-wings','anim-fly']; 
+
+let terr = new Uint8Array(GW*GH);
+let objects = [];   // {id,type,tx,ty}
+let idSeq = 1;
+let SPRITES = null; // {type:{html,w,h}}
+
+// ================= СВОИ АНИМАЦИИ (PNG-лента + JSON) =================
+// Формат объекта:
+//   PNG: горизонтальная лента кадров, все кадры одинаковые (frameW×frameH)
+//   JSON: {name, image(dataURL/файл рядом), frameW, frameH, frames, fps, scale}
+// Почему так: 1 DOM-узел на объект, кадры листаются сменой background-position —
+// редактор и игра не виснут даже на сотнях объектов (в отличие от кучи SVG-узлов).
+let customs = {}; // key -> {name,image,fw,fh,frames,fps,scale}
+function allDefs(){
+  const d = Object.assign({}, OBJ_DEFS);
+  for(const [key, c] of Object.entries(customs)){
+    d['custom:'+key] = { name:c.name || key, customKey:key };
+  }
+  return d;
+}
+function customHTML(key){
+  const c = customs[key];
+  if(!c) return '';
+  const w = c.fw*c.scale, h = c.fh*c.scale;
+  return `<div class="cstmt" data-key="${key}" style="width:${w}px;height:${h}px;`
+    + `background-image:url(&quot;${c.image}&quot;);background-repeat:no-repeat;`
+    + `background-size:${c.fw*c.frames*c.scale}px ${h}px;image-rendering:pixelated;"></div>`;
+}
+// один тикер на все превью/объекты: листаем кадры сменой позиции фона
+setInterval(()=>{
+  document.querySelectorAll('.cstmt').forEach(el=>{
+    const c = customs[el.dataset.key];
+    if(!c || (c.frames||1) < 2) return;
+    el._f = ((el._f || 0) + 1) % c.frames;
+    el.style.backgroundPosition = `${-el._f*c.fw*c.scale}px 0`;
+  });
+}, 140);
+function registerCustomSprites(){
+  for(const [key, c] of Object.entries(customs)){
+    SPRITES['custom:'+key] = {
+      html: customHTML(key),
+      w: Math.max(c.fw*c.scale, 8),
+      h: Math.max(c.fh*c.scale, 8)
+    };
+  }
+}
+function saveCustoms(){ try{ localStorage.setItem('pw_customs', JSON.stringify(customs)); }catch(e){ toast('⚠️ Свои анимации не влезли в localStorage (большие PNG)'); } }
+function loadCustoms(){
+  try{
+    const s = localStorage.getItem('pw_customs');
+    if(s){ customs = JSON.parse(s) || {}; }
+  }catch(e){ customs = {}; }
+}
+
+// ================= ТЕКСТУРЫ ТЕРРЕЙНА =================
+function rng(seed){ let s=seed>>>0; return ()=> (s=(s*1664525+1013904223)>>>0)/4294967296; }
+function makeCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+const P = (ctx,x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
+const TERR_VARIANTS = {};
+function makeTerrain(id, painter){
+  TERR_VARIANTS[id] = [];
+  for(let v=0; v<4; v++){
+    const c = makeCanvas(TILE,TILE), x = c.getContext('2d');
+    painter(x, rng(id*1000+v+7));
+    TERR_VARIANTS[id].push(c);
+  }
+}
+makeTerrain(T.GRASS, (x,r)=>{
+  P(x,0,0,32,32,'#5fae37');
+  for(let i=0;i<48;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#559e30':'#6cbd40');
+  for(let i=0;i<7;i++){ const px=(r()*30)|0, py=(r()*30)|0; P(x,px,py,1,2,'#4c8f2a'); P(x,px+1,py,1,1,'#6cbd40'); }
+});
+makeTerrain(T.FLOWERS, (x,r)=>{
+  P(x,0,0,32,32,'#5fae37');
+  for(let i=0;i<44;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#559e30':'#6cbd40');
+  const cols=['#ffe14d','#ffffff','#ff8fb3','#c17bff'];
+  for(let i=0;i<6;i++){ const px=1+(r()*29)|0, py=1+(r()*29)|0, c=cols[(r()*4)|0];
+    P(x,px,py,2,2,c); P(x,px,py-1,1,1,c); P(x,px+1,py+1,1,1,'#3d7a22'); }
+});
+makeTerrain(T.DARK, (x,r)=>{
+  P(x,0,0,32,32,'#478a29');
+  for(let i=0;i<60;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#3d7823':'#549a31');
+});
+makeTerrain(T.PATH, (x,r)=>{
+  P(x,0,0,32,32,'#cfa76e');
+  for(let i=0;i<40;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#c2975f':'#dcbb85');
+  for(let i=0;i<6;i++) P(x,(r()*30)|0,(r()*30)|0,2,1,'#a9834f');
+});
+makeTerrain(T.STONE, (x,r)=>{
+  P(x,0,0,32,32,'#8f8778');
+  const g='#b6ac9a', g2='#c2b8a6';
+  for(let ty=0; ty<4; ty++) for(let tx=0; tx<4; tx++){
+    const ox=tx*8+(ty%2?4:0), oy=ty*8;
+    P(x,((ox%32)+32)%32,oy,7,7, r()<.3?g2:g);
+    if(ox+7>32) P(x,0,oy,ox+7-32,7,g);
+  }
+  for(let i=0;i<14;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#a89e8c':'#9c9282');
+});
+makeTerrain(T.WATER, (x,r)=>{
+  P(x,0,0,32,32,'#3d7cc9');
+  for(let i=0;i<30;i++) P(x,(r()*32)|0,(r()*32)|0,2,1,'#3570b8');
+  for(let i=0;i<6;i++){ const py=(r()*32)|0, px=(r()*28)|0; P(x,px,py,3,1,'#6fb0e8'); }
+});
+makeTerrain(T.SAND, (x,r)=>{
+  P(x,0,0,32,32,'#e8d491');
+  for(let i=0;i<44;i++) P(x,(r()*32)|0,(r()*32)|0,1,1, r()<.5?'#dcc87e':'#f2e2a4');
+});
+
+// ================= ЗАГРУЗКА СПРАЙТОВ ИЗ ИГРЫ =================
+async function loadGameAssets(){
+  const loading = document.getElementById('loading');
+  let html;
+  try {
+    const res = await fetch('../chuv.html');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    html = await res.text();
+  } catch(e){
+    loading.innerHTML = '<div class="err">⚠️ Не удалось загрузить chuv.html ('+e.message+').<br>Открой редактор через локальный сервер (python -m http.server) из папки игры.</div>';
+    throw e;
+  }
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  // --- CSS игры: только правила для нужных классов + @keyframes ---
+  const cssText = [...doc.querySelectorAll('style')].map(s=>s.textContent).join('\n');
+  const kept = filterCss(cssText, GAME_CSS_CLASSES);
+  const style = document.createElement('style');
+  style.textContent = kept + `
+    #objLayer, .obj-wrap, .pal-btn .pv { transform-style: preserve-3d; }
+    .obj-wrap > * { pointer-events:none; }
+  `;
+  document.head.appendChild(style);
+
+  // --- SVG-константы из скрипта игры ---
+  const m = html.match(/const\s+(PORING_SVG|IRON_SVG|CAMPFIRE_SVG|BONES_SVG|FLOWER_SVG|LAVENDER_SVG|BOUQUET_SVG|FLYTRAP_SVG|INDIE_SVG|catSvgContent|greyCatSvgContent)\s*=\s*`([\s\S]*?)`;/g) || [];
+  const svgs = {};
+  for(const full of m){
+    const mm = full.match(/const\s+(\w+)\s*=\s*`([\s\S]*?)`;/);
+    svgs[mm[1]] = mm[2];
+  }
+
+  // --- сборка спрайтов ---
+  SPRITES = {};
+  for(const [type, def] of Object.entries(allDefs())){
+    let inner = null;
+    if(def.decorClass){
+      const el = doc.querySelector('.'+def.decorClass);
+      if(el){
+        const clone = el.cloneNode(true);
+        // чистим позиционирование, оставляем «внутренности»
+        clone.style.cssText += ';position:static;left:auto;top:auto;right:auto;bottom:auto;transform:none;margin:0;';
+        inner = clone.outerHTML;
+      }
+    } else if(def.inline){
+      inner = def.wrap ? `<div class="${def.wrap}">${def.inline}</div>` : def.inline;
+    } else if(def.customKey && customs[def.customKey]){
+      inner = customHTML(def.customKey);
+    } else if(def.svgConst && svgs[def.svgConst]){
+      inner = def.wrap ? `<div class="${def.wrap}">${svgs[def.svgConst]}</div>` : svgs[def.svgConst];
+    }
+    if(!inner){ console.warn('нет спрайта для', type); continue; }
+    // измеряем габариты на офскрин-ноде
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;';
+    probe.innerHTML = inner;
+    document.body.appendChild(probe);
+    const target = probe.firstElementChild;
+    const w = target ? target.offsetWidth  || probe.offsetWidth  : probe.offsetWidth;
+    const h = target ? target.offsetHeight || probe.offsetHeight : probe.offsetHeight;
+    document.body.removeChild(probe);
+    SPRITES[type] = { html: inner, w: Math.max(w,8), h: Math.max(h,8) };
+  }
+  registerCustomSprites();
+  loading.remove();
+  buildPalette();
+  renderObjects();
+}
+
+// вытаскиваем из CSS игры правила для нужных классов + @keyframes.
+// плоские правила — регэкспом (надёжно для этого CSS), @keyframes — целиком.
+function filterCss(css, classes){
+  const out = [];
+  const kf = css.match(/@(?:-webkit-)?keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g) || [];
+  out.push(...kf);
+  const re = /(^|[}\n])\s*([^@{}\n][^{}]*)\{([^{}]*)\}/g;
+  let m;
+  while((m = re.exec(css))){
+    const sel = m[2].trim();
+    if(!sel || sel.startsWith('@')) continue;
+    if(classes.some(c => sel.includes(c))) out.push(sel + '{' + m[3] + '}');
+  }
+  return out.join('\n');
+}
+
+// ================= UI =================
+let mode = 'terr', curTerr = T.GRASS, curObj = 'oak', brush = 1, fillMode = false;
+const palette = document.getElementById('palette');
+const statusEl = document.getElementById('status');
+
+function buildPalette(){
+  if(!SPRITES) return;
+  palette.innerHTML = '';
+  if(mode === 'terr'){
+    document.getElementById('brushRow').style.display = 'flex';
+    for(const id of Object.values(T)){
+      const b = document.createElement('div');
+      b.className = 'pal-btn' + (id===curTerr && !fillMode ? ' active':'');
+      const pv = document.createElement('div'); pv.className='pv';
+      const c = makeCanvas(48,48), cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(TERR_VARIANTS[id][0], 0, 0, 48, 48);
+      c.style.width='100%'; c.style.height='100%';
+      pv.appendChild(c); b.appendChild(pv);
+      const l = document.createElement('div'); l.className='lbl'; l.textContent = TERR_INFO[id];
+      b.appendChild(l);
+      b.onclick = ()=>{ curTerr=id; fillMode=false; buildPalette(); };
+      palette.appendChild(b);
+    }
+  } else {
+    document.getElementById('brushRow').style.display = 'none';
+    for(const [type, def] of Object.entries(allDefs())){
+      if(!SPRITES[type]) continue;
+      const b = document.createElement('div');
+      b.className = 'pal-btn' + (type===curObj && !fillMode ? ' active':'');
+      const pv = document.createElement('div'); pv.className='pv';
+      const s = SPRITES[type];
+      const holder = document.createElement('div');
+      holder.innerHTML = s.html;
+      const el = holder.firstElementChild;
+      if(el){
+        const k = Math.min(52/(s.w||52), 52/(s.h||52), 3);
+        el.style.cssText += `;position:static;left:auto;top:auto;transform:scale(${k});transform-origin:center;`;
+        holder.style.width = (s.w*k)+'px'; holder.style.height = (s.h*k)+'px';
+        holder.style.overflow = 'visible';
+        pv.appendChild(holder);
+      }
+      b.appendChild(pv);
+      const l = document.createElement('div'); l.className='lbl'; l.textContent = def.name;
+      b.appendChild(l);
+      b.onclick = ()=>{ curObj=type; fillMode=false; buildPalette(); };
+      palette.appendChild(b);
+    }
+  }
+}
+document.getElementById('tabTerr').onclick = ()=>{ mode='terr'; setTab(); };
+document.getElementById('tabObj').onclick  = ()=>{ mode='obj'; setTab(); };
+function setTab(){
+  document.getElementById('tabTerr').classList.toggle('active', mode==='terr');
+  document.getElementById('tabObj').classList.toggle('active', mode==='obj');
+  fillMode = false; buildPalette();
+}
+document.querySelectorAll('#brushRow button').forEach(b=>{
+  b.onclick = ()=>{ brush = +b.dataset.b; document.querySelectorAll('#brushRow button').forEach(x=>x.classList.toggle('active', x===b)); };
+});
+document.getElementById('btnFill').onclick = ()=>{ fillMode=!fillMode; buildPalette(); };
+
+// ================= КАНВАС ТЕРРЕЙНА =================
+const canvas = document.getElementById('mapCanvas');
+canvas.width = GW*TILE; canvas.height = GH*TILE;
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const worldEl = document.getElementById('world');
+const objLayer = document.getElementById('objLayer');
+const viewport = document.getElementById('viewport');
+let zoom = 0.5, needRender = true;
+
+function hash(x,y){ let h=(x*374761393 + y*668265263)>>>0; h=(h^(h>>13))*1274126177>>>0; return ((h^(h>>16))>>>0); }
+function renderMap(){
+  for(let ty=0; ty<GH; ty++) for(let tx=0; tx<GW; tx++){
+    ctx.drawImage(TERR_VARIANTS[terr[ty*GW+tx]][hash(tx,ty)%4], tx*TILE, ty*TILE);
+  }
+}
+function scheduleRender(){ needRender = true; }
+(function loop(){ if(needRender){ needRender=false; renderMap(); } requestAnimationFrame(loop); })();
+
+// ================= DOM-СЛОЙ ОБЪЕКТОВ =================
+function renderObjects(){
+  if(!SPRITES) return;
+  objLayer.innerHTML = '';
+  const sorted = [...objects].sort((a,b)=>a.ty-b.ty);
+  for(const o of sorted){
+    const s = SPRITES[o.type]; if(!s) continue;
+    const w = document.createElement('div');
+    w.className = 'obj-wrap';
+    w.dataset.id = o.id;
+    w.style.left = (o.tx*TILE + TILE/2 - s.w/2) + 'px';
+    w.style.top  = (o.ty*TILE + TILE - s.h) + 'px';
+    w.style.zIndex = o.ty + 10;
+    w.innerHTML = s.html;
+    objLayer.appendChild(w);
+  }
+}
+
+// ================= ВВОД =================
+function toTile(ev){
+  const r = canvas.getBoundingClientRect();
+  return { tx: Math.floor((ev.clientX - r.left)/r.width*GW), ty: Math.floor((ev.clientY - r.top)/r.height*GH) };
+}
+let painting=false, paintErase=false, lastTile=null;
+function paintAt(tx,ty,erase){
+  const sizes={1:1,2:2,3:3,4:8}, s=sizes[brush], o=Math.floor((s-1)/2);
+  for(let dy=0; dy<s; dy++) for(let dx=0; dx<s; dx++){
+    const x=tx-o+dx, y=ty-o+dy;
+    if(x>=0&&x<GW&&y>=0&&y<GH) terr[y*GW+x] = erase ? T.GRASS : curTerr;
+  }
+  scheduleRender(); saveLocal();
+}
+function floodFill(tx,ty){
+  const target = terr[ty*GW+tx], repl = curTerr;
+  if(target===repl) return;
+  const st=[[tx,ty]];
+  while(st.length){
+    const [x,y]=st.pop();
+    if(x<0||x>=GW||y<0||y>=GH||terr[y*GW+x]!==target) continue;
+    terr[y*GW+x]=repl;
+    st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  scheduleRender(); saveLocal();
+}
+function objAtPx(px,py){ // пиксельные координаты
+  return [...objects].reverse().find(o=>{
+    const s = SPRITES[o.type]; if(!s) return false;
+    const ox = o.tx*TILE + TILE/2 - s.w/2, oy = o.ty*TILE + TILE - s.h;
+    return px>=ox && px<=ox+s.w && py>=oy && py<=oy+s.h;
+  });
+}
+canvas.addEventListener('mousedown', (ev)=>{
+  const {tx,ty} = toTile(ev);
+  if(tx<0||tx>=GW||ty<0||ty>=GH) return;
+  if(ev.button === 2){
+    if(mode==='terr'){ paintErase=true; painting=true; paintAt(tx,ty,true); }
+    else {
+      const r = canvas.getBoundingClientRect();
+      const px=(ev.clientX-r.left)/r.width*GW*TILE, py=(ev.clientY-r.top)/r.height*GH*TILE;
+      const o = objAtPx(px,py);
+      if(o){ objects=objects.filter(x=>x!==o); renderObjects(); saveLocal(); }
+    }
+    return;
+  }
+  if(ev.button !== 0) return;
+  if(mode==='terr'){
+    if(fillMode){ floodFill(tx,ty); return; }
+    painting=true; paintAt(tx,ty,false);
+  } else {
+    const ex = objAtPx(tx*TILE+TILE/2, ty*TILE+TILE/2);
+    // повторный клик тем же типом — оставляем как есть, не удаляем
+    if(ex && ex.type === curObj) return;
+    if(ex) objects=objects.filter(x=>x!==ex);
+    objects.push({id:idSeq++, type:curObj, tx, ty});
+    renderObjects(); saveLocal();
+  }
+});
+canvas.addEventListener('mousemove', (ev)=>{
+  const {tx,ty} = toTile(ev);
+  statusEl.textContent = `x:${tx} y:${ty} · ${tx*TILE},${ty*TILE}px · объектов: ${objects.length}`;
+  if(painting && mode==='terr' && !fillMode){
+    if(lastTile){
+      const dx=tx-lastTile.tx, dy=ty-lastTile.ty, steps=Math.max(Math.abs(dx),Math.abs(dy));
+      for(let i=1;i<=steps;i++) paintAt(lastTile.tx+Math.round(dx*i/steps), lastTile.ty+Math.round(dy*i/steps), paintErase);
+    } else paintAt(tx,ty,paintErase);
+  }
+  lastTile = {tx,ty};
+});
+document.addEventListener('mouseup', ()=>{ painting=false; paintErase=false; lastTile=null; });
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+let spaceDown=false, panning=null;
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space'){ spaceDown=true; e.preventDefault(); }
+  if(e.key==='f'||e.key==='F'||e.key==='а'||e.key==='А'){ fillMode=!fillMode; buildPalette(); }
+  if(e.key==='e'||e.key==='E'||e.key==='у'||e.key==='У') exportJSON();
+});
+document.addEventListener('keyup', e=>{ if(e.code==='Space') spaceDown=false; });
+viewport.addEventListener('mousedown', e=>{ if(spaceDown || e.button===1){ panning={x:e.clientX,y:e.clientY,sl:viewport.scrollLeft,st:viewport.scrollTop}; e.preventDefault(); } });
+document.addEventListener('mousemove', e=>{ if(panning){ viewport.scrollLeft=panning.sl-(e.clientX-panning.x); viewport.scrollTop=panning.st-(e.clientY-panning.y); } });
+document.addEventListener('mouseup', ()=> panning=null);
+
+// ================= ЗУМ =================
+function setZoom(z){
+  const cx=viewport.scrollLeft+viewport.clientWidth/2, cy=viewport.scrollTop+viewport.clientHeight/2;
+  const wcx=(cx-40)/zoom, wcy=(cy-40)/zoom;
+  zoom=Math.max(0.12, Math.min(2, z));
+  worldEl.style.transform=`scale(${zoom})`;
+  requestAnimationFrame(()=>{
+    viewport.scrollLeft = wcx*zoom+40-viewport.clientWidth/2;
+    viewport.scrollTop  = wcy*zoom+40-viewport.clientHeight/2;
+  });
+}
+viewport.addEventListener('wheel', e=>{ e.preventDefault(); setZoom(zoom*(e.deltaY<0?1.15:0.87)); }, {passive:false});
+document.getElementById('zIn').onclick=()=>setZoom(zoom*1.25);
+document.getElementById('zOut').onclick=()=>setZoom(zoom/1.25);
+document.getElementById('zFit').onclick=()=>{ setZoom(Math.min((viewport.clientWidth-80)/(GW*TILE),(viewport.clientHeight-80)/(GH*TILE))); viewport.scrollLeft=0; viewport.scrollTop=0; };
+
+// ================= JSON / ХРАНЕНИЕ =================
+document.getElementById('btnExport').onclick = exportJSON;
+document.getElementById('btnImport').onclick = ()=>document.getElementById('fileInput').click();
+document.getElementById('btnClearTerr').onclick = ()=>{ if(confirm('Залить всю карту травой?')){ terr.fill(T.GRASS); scheduleRender(); saveLocal(); } };
+document.getElementById('btnClearObj').onclick = ()=>{ if(objects.length && confirm('Удалить все объекты?')){ objects=[]; renderObjects(); saveLocal(); } };
+document.getElementById('fileInput').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ importJSON(rd.result); }catch(err){ toast('Ошибка: '+err.message); } };
+  rd.readAsText(f); e.target.value='';
+};
+
+function exportJSON(){
+  const legend=' gfdswo'.split('');
+  const rows=[];
+  for(let y=0;y<GH;y++){ let s=''; for(let x=0;x<GW;x++) s+=legend[terr[y*GW+x]]; rows.push(s); }
+  // свои анимации + inline-объекты (скалы) уходят отдельным списком в пикселях игры
+  const customsOut = {};
+  const customObjects = [];
+  const inlineURL = svg=> 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  for(const o of objects){
+    if(o.type.startsWith('custom:')){
+      const key=o.type.slice(7), c=customs[key];
+      if(!c) continue;
+      customsOut[key]=c;
+      customObjects.push({ name:c.name, asset:c.image,
+        frameW:c.fw, frameH:c.fh, frames:c.frames, fps:c.fps, scale:c.scale,
+        x:o.tx*TILE, y:o.ty*TILE, w:c.fw*c.scale, h:c.fh*c.scale });
+    } else {
+      const def=OBJ_DEFS[o.type];
+      if(def && def.inline){
+        customObjects.push({ name:def.name, asset:inlineURL(def.inline),
+          frameW:def.vw||64, frameH:def.vh||64, frames:1, fps:0, scale:1,
+          x:o.tx*TILE, y:o.ty*TILE, w:def.vw||64, h:def.vh||64 });
+      }
+    }
+  }
+  const data={
+    format:'pixel-world-map', version:3, tile:TILE,
+    width:GW*TILE, height:GH*TILE,
+    legend:{ ' ':'grass', g:'grass', f:'flowers', d:'dark_grass', s:'path', w:'stone', a:'water', o:'sand' },
+    terrain:rows,
+    objects:objects.filter(o=>!o.type.startsWith('custom:') && !(OBJ_DEFS[o.type]&&OBJ_DEFS[o.type].inline))
+      .map(o=>({type:o.type, x:o.tx*TILE+TILE/2, y:o.ty*TILE+TILE})),
+    customs:customsOut,
+    customObjects
+  };
+  const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='pixel-map.json'; a.click();
+  toast('Экспортировано: карта + объектов '+objects.length);
+}
+function importJSON(text){
+  const data=JSON.parse(text);
+  if(data.terrain && Array.isArray(data.terrain)){
+    const inv={' ':0,g:0,f:1,d:2,s:3,w:4,a:5,o:6};
+    for(let y=0;y<Math.min(GH,data.terrain.length);y++){
+      const row=data.terrain[y];
+      for(let x=0;x<Math.min(GW,row.length);x++) terr[y*GW+x]=inv[row[x]]??0;
+    }
+  }
+  if(Array.isArray(data.objects)){
+    objects=data.objects.filter(o=>OBJ_DEFS[o.type]||(typeof o.type==='string'&&o.type.startsWith('custom:'))).map((o,i)=>{
+      const tx=Math.max(0,Math.min(GW-1,Math.floor(o.x/TILE))), ty=Math.max(0,Math.min(GH-1,Math.floor(o.y/TILE)));
+      return {id:i+1, type:o.type, tx, ty};
+    });
+    idSeq=objects.length+1;
+  }
+  if(data.customs && typeof data.customs==='object'){
+    customs=data.customs;
+    saveCustoms();
+    if(SPRITES) registerCustomSprites();
+  }
+  scheduleRender(); renderObjects(); saveLocal(); toast('Загружено объектов: '+objects.length);
+}
+function saveLocal(){ try{ localStorage.setItem('mapeditor3', JSON.stringify({terr:Array.from(terr), objects})); }catch(e){} }
+function toast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+
+// ---------- Свои анимации: загрузка PNG-ленты ----------
+// Формат: PNG, кадры в ряд слева направо, все кадры одинакового размера.
+// После выбора файла спросим: имя, ширину/высоту кадра, число кадров, fps, масштаб.
+document.getElementById('btnAddAnim').onclick = ()=>document.getElementById('animFileInput').click();
+document.getElementById('animFileInput').onchange = e=>{
+  const f=e.target.files[0]; e.target.value='';
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const img=new Image();
+      img.onload=()=>{
+        const name=(prompt('Название объекта:', f.name.replace(/\.\w+$/,''))||'custom').slice(0,24);
+        const fw=parseInt(prompt(`Ширина ОДНОГО кадра в px (картинка ${img.width}×${img.height}):`, '64'),10);
+        const fh=parseInt(prompt('Высота кадра в px:', '64'),10);
+        const frames=parseInt(prompt('Число кадров в ряд:', String(Math.max(1, Math.floor(img.width/(fw||64))))),10);
+        const fps=parseInt(prompt('Кадров в секунду (1-12):', '6'),10);
+        const scale=parseFloat(prompt('Масштаб на карте (1 = как есть):', '1'));
+        if(!(fw>0&&fh>0&&frames>0)){ toast('⚠️ Неверные размеры'); return; }
+        const key='u'+Date.now().toString(36);
+        customs[key]={ name, image:String(rd.result),
+          fw, fh, frames:Math.min(frames,64), fps:Math.min(Math.max(fps||6,1),12), scale:scale>0?scale:1 };
+        saveCustoms();
+        registerCustomSprites();
+        buildPalette();
+        curObj='custom:'+key; mode='obj'; setTab(); buildPalette();
+        toast('✅ «'+name+'» в палитре (объекты)');
+      };
+      img.src=rd.result;
+    }catch(err){ toast('Ошибка: '+err.message); }
+  };
+  rd.readAsDataURL(f);
+};
+
+function toast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+(function loadLocal(){
+  try{
+    const s=localStorage.getItem('mapeditor3');
+    if(s){ const d=JSON.parse(s); if(d.terr) terr=Uint8Array.from(d.terr); if(d.objects) objects=d.objects; }
+  }catch(e){}
+})();
+
+function toast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+
+buildPalette();
+setTimeout(()=>document.getElementById('zFit').click(),0);
+loadCustoms();
+loadGameAssets();
+</script>
+</body>
+</html>

@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isometric Ground & Map Generator Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas.pixelated-canvas {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex flex-col">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold leading-tight">Isometric Ground & Map Studio</h1>
+                <p class="text-[11px] text-slate-400">Генератор изометрической земли и карт • Container Spec v2.0</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="btn-reset-view" title="Сбросить камеру" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition flex items-center gap-1.5 border border-slate-700">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                Сброс вида
+            </button>
+            <button id="btn-copy-code" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5 border border-slate-700">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Копировать JSON
+            </button>
+            <button id="btn-export-svg" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-lg shadow-blue-600/20">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Скачать SVG
+            </button>
+            <button id="btn-export-png" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-lg shadow-purple-600/20">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 4-4 4 4M4 20h16"/></svg>
+                PNG карты
+            </button>
+            <button id="btn-export-game" title="Скачать map.json для игры (objects/flowers/customs)" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-lg shadow-amber-600/20">
+                🎮 map.json
+            </button>
+            <button id="btn-export-json" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                Скачать JSON
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar Controls -->
+        <aside class="w-80 bg-slate-900/90 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto">
+            <div class="p-4 space-y-5">
+
+                <!-- Biome Selector -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Биом почвы</label>
+                    <div id="biome-container" class="grid grid-cols-2 gap-2">
+                        <!-- Biome buttons generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Our SVG objects palette -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">🌲 Наши объекты — кликни, потом тыкай в карту</label>
+                    <div id="obj-palette" class="grid grid-cols-3 gap-2">
+                        <div class="text-[10px] text-slate-500 col-span-3" id="obj-palette-hint">Загружаю спрайты из chuv.html…</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-tool-pan" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition">✋ Панорама</button>
+                        <button id="btn-tool-erase-obj" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition">🧹 Стереть</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-scatter-flowers" class="flex-1 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs rounded-lg border border-emerald-700 transition">🌸 Заполнить цветами</button>
+                        <button id="btn-scatter-trees" class="flex-1 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs rounded-lg border border-emerald-700 transition">🌳 Заполнить дубами</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-tight">1) Кликни объект сверху 2) Кликай тайлы карты — объект встанет. ПКМ — убрать.</p>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <!-- Pixel Art & Quality Mode -->
+                <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Пикселизация (Pixel Art)
+                        </label>
+                        <span id="val-pixel-scale" class="text-xs font-mono text-emerald-400">Выкл (1x Вектор)</span>
+                    </div>
+                    <input id="slider-pixel-scale" type="range" min="1" max="8" step="1" value="1" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-[10px] text-slate-500 leading-tight">При выключении отрисовывается четкий вектор, а при включении — классический 8-bit пиксель-арт без размытия.</p>
+                </div>
+
+                <!-- Terrain Parameters -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Параметры Земли</label>
+                    
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Размер сетки (NxN)</span>
+                            <span id="val-grid-size" class="font-mono text-slate-400">10x10</span>
+                        </div>
+                        <input id="slider-grid-size" type="range" min="5" max="20" value="10" class="w-full accent-blue-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Высота блока (px)</span>
+                            <span id="val-block-height" class="font-mono text-slate-400">18px</span>
+                        </div>
+                        <input id="slider-block-height" type="range" min="10" max="40" value="18" class="w-full accent-blue-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Изрезанность / Неровность Z</span>
+                            <span id="val-roughness" class="font-mono text-slate-400">35%</span>
+                        </div>
+                        <input id="slider-roughness" type="range" min="0" max="100" value="35" class="w-full accent-blue-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <button id="btn-regenerate" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Перегенерировать рельеф
+                    </button>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <!-- Decor Density Parameters -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Пиксельный Декор</label>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Плотность цветов</span>
+                            <span id="val-flower-density" class="font-mono text-slate-400">20%</span>
+                        </div>
+                        <input id="slider-flower-density" type="range" min="0" max="60" value="20" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Пеньки и пучки травы</span>
+                            <span id="val-stump-density" class="font-mono text-slate-400">15%</span>
+                        </div>
+                        <input id="slider-stump-density" type="range" min="0" max="50" value="15" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Камни и грибы</span>
+                            <span id="val-rock-density" class="font-mono text-slate-400">10%</span>
+                        </div>
+                        <input id="slider-rock-density" type="range" min="0" max="50" value="10" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <!-- Custom Color Palette -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Палитра Граней</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Верхняя грань</span>
+                            <div class="flex items-center gap-2">
+                                <input id="color-top" type="color" class="w-8 h-8 rounded border-0 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Левая грань</span>
+                            <div class="flex items-center gap-2">
+                                <input id="color-left" type="color" class="w-8 h-8 rounded border-0 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Правая грань</span>
+                            <div class="flex items-center gap-2">
+                                <input id="color-right" type="color" class="w-8 h-8 rounded border-0 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Обрыв / Клифф</span>
+                            <div class="flex items-center gap-2">
+                                <input id="color-cliff" type="color" class="w-8 h-8 rounded border-0 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <!-- Toggles & Debug Options -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Отображение</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input id="toggle-grid-lines" type="checkbox" checked class="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-0">
+                        Сетка тайлов
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input id="toggle-walkable-debug" type="checkbox" class="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-0">
+                        Подсветка проходимости (Walkable)
+                    </label>
+                </div>
+
+                <!-- File Import Container -->
+                <div class="pt-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Загрузить Container JSON</label>
+                    <input id="input-import-json" type="file" accept=".json" class="block w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Viewport Canvas Area -->
+        <main class="flex-1 relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+            <!-- Viewport Overlay Info -->
+            <div class="absolute top-3 left-4 z-10 bg-slate-900/80 backdrop-blur border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300 flex items-center gap-3">
+                <div>Тайлов: <span id="tile-count-display" class="font-mono text-emerald-400 font-bold">100</span></div>
+                <div class="w-px h-3 bg-slate-700"></div>
+                <div class="text-slate-400">Управление: <span class="text-slate-200">Перетаскивание мышью / Touch</span></div>
+            </div>
+
+            <!-- Main Interactive Canvas -->
+            <div id="viewport" class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing">
+                <canvas id="map-canvas" class="pixelated-canvas max-w-full max-h-full"></canvas>
+            </div>
+
+            <!-- JSON Container Output Drawer -->
+            <div class="w-full bg-slate-900 border-t border-slate-800 p-3 h-36 shrink-0 flex flex-col">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-300">Map Container Data (JSON)</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Isometric Map v2.0</span>
+                    </div>
+                    <button id="btn-copy-json-bottom" class="text-xs text-emerald-400 hover:text-emerald-300 transition font-medium">Копировать JSON</button>
+                </div>
+                <pre id="json-output" class="flex-1 bg-slate-950 rounded-lg p-2 font-mono text-[11px] text-slate-400 overflow-y-auto overflow-x-auto border border-slate-800/80 select-text"></pre>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Preset Biomes with tailored isometric color palettes
+        const BIOMES = [
+            {
+                id: 'meadow',
+                name: 'Цветущий луг',
+                colors: {
+                    top: '#4ade80',
+                    left: '#22c55e',
+                    right: '#16a34a',
+                    cliff: '#854d0e'
+                }
+            },
+            {
+                id: 'autumn',
+                name: 'Осенняя роща',
+                colors: {
+                    top: '#fb923c',
+                    left: '#f97316',
+                    right: '#ea580c',
+                    cliff: '#78350f'
+                }
+            },
+            {
+                id: 'desert',
+                name: 'Песчаный оазис',
+                colors: {
+                    top: '#fde047',
+                    left: '#eab308',
+                    right: '#ca8a04',
+                    cliff: '#854d0e'
+                }
+            },
+            {
+                id: 'snow',
+                name: 'Снежный занос',
+                colors: {
+                    top: '#f1f5f9',
+                    left: '#cbd5e1',
+                    right: '#94a3b8',
+                    cliff: '#334155'
+                }
+            },
+            {
+                id: 'magma',
+                name: 'Вулканический',
+                colors: {
+                    top: '#475569',
+                    left: '#334155',
+                    right: '#1e293b',
+                    cliff: '#dc2626'
+                }
+            }
+        ];
+
+        // Core Map Data Container Structure
+        let mapContainer = {
+            version: "2.0.0",
+            type: "IsometricMapContainer",
+            gridSize: 10,
+            blockHeight: 18,
+            biome: 'meadow',
+            colors: { ...BIOMES[0].colors },
+            tiles: []
+        };
+
+        // View State and Camera Pan
+        let viewState = {
+            offsetX: 0,
+            offsetY: 0,
+            pixelScale: 1, // 1 = Vector, 2..8 = Pixel Art scale
+            showGrid: true,
+            showCollisionDebug: false
+        };
+
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let currentSeed = 12345;
+
+        // ============ НАШИ SVG-СПРАЙТЫ ИЗ ИГРЫ (чётко, попиксельно) ============
+        // Заливки классов из chuv.html — чтобы растр был в тех же цветах, что в игре.
+        const SPRITE_CSS = `.p-stem{fill:#2d6a4f}.p-stem-light{fill:#52b788}.p-leaf{fill:#40916c}`
+          + `.p-soil{fill:#3d2612;opacity:0.6}.p-grass{fill:#74c69d}.p-yellow{fill:#ffb703}.p-yellow-dark{fill:#fb8500}`
+          + `.p-blue{fill:#4ea8de}.p-blue-dark{fill:#0077b6}.p-pink{fill:#ff4d6d}.p-pink-center{fill:#fff0f3}`
+          + `.p-white{fill:#f8f9fa}.p-white-center{fill:#ffb703}.p-bark{fill:#5c3d2e}.p-bark-dark{fill:#3d261a}`
+          + `.p-tree-green{fill:#2d6a4f}.p-tree-light{fill:#40916c}.p-tree-highlight{fill:#52b788}`
+          + `.p-orange{fill:#fb8500}.p-brown{fill:#582f0e}.p-dark-brown{fill:#331800}.p-butterfly-blue{fill:#48cae4}`
+          + `.p-lavender-light{fill:#b5179e}.p-lavender-mid{fill:#7209b7}.p-lavender-dark{fill:#3f37c9}`
+          + `.p-butterfly-orange{fill:#fb8500}.p-poop{fill:#6f4e37}.p-poop-dark{fill:#4a3322}.p-fly{fill:#1e293b}`
+          + `.p-mush-red{fill:#e63946}.f-stem{fill:#2d6a4f}.f-leaf{fill:#40916c}.f-soil{fill:#3d2612;opacity:0.6}`
+          + `.f-petal{fill:#ffb703}.f-petal-alt{fill:#ff4d6d}.f-white{fill:#f8f9fa}.f-dark{fill:#1e293b}`
+          + `.f-red-dark{fill:#991b1b}.f-fly-red{fill:#ef4444}.f-fly-blue{fill:#38bdf8}`
+          + `.c-soil{fill:#3d2612;opacity:0.6}.c-wood{fill:#78350f}.c-wood-dark{fill:#451a03}.c-gold{fill:#f59e0b}`
+          + `.c-oil{fill:#0f172a}.c-oil-light{fill:#334155}.c-glass{fill:#38bdf8;opacity:0.4}.c-jelly{fill:#1e1b4b}`
+          + `.c-white{fill:#f8f9fa}.c-grass{fill:#52b788}.c-stem{fill:#2d6a4f}.c-petal{fill:#ffb703}`
+          + `.c-petal-alt{fill:#ff4d6d}.c-leaf{fill:#40916c}.c-dark{fill:#1e293b}.c-pink{fill:#f472b6}`;
+        // key → {label, const(ы) из chuv.html | htmlQuery}. Тот же набор, что в мап-эдиторе.
+        const GAME_SPRITES = [
+            { key:'oak',      label:'🌳 Дуб',      htmlQuery:'.oak-tree svg' },
+            { key:'palm',     label:'🌴 Пальма',   htmlQuery:'.snowy-palm-tree svg' },
+            { key:'chick',    label:'🐤 Цыплёнок', htmlQuery:'.tiny-chick svg', sc:2.5 },
+            { key:'fish',     label:'🐟 Рыба',     htmlQuery:'.pixel-fish-item svg' },
+            { key:'table',    label:'🤝 Стол',     htmlQuery:'.negotiation-table-item svg' },
+            { key:'shop',     label:'🏪 Магазин',  img:'../shop.png', w:52, h:78 },
+            { key:'pond',     label:'🧊 Пруд',     inline:'<svg viewBox="0 0 110 60" width="110" height="60"><ellipse cx="55" cy="30" rx="52" ry="26" fill="#b3daf8" stroke="#ffffff" stroke-width="5"/></svg>' },
+            { key:'fountain', label:'⛲ Фонтан',   htmlQuery:'.fountain svg' },
+            { key:'lamp',     label:'💡 Фонарь',   htmlQuery:'.lamp-post svg' },
+            { key:'flowers',  label:'🌼 Цветы',    constName:'FLOWER_SVG' },
+            { key:'lavender', label:'🪻 Лаванда',  constName:'LAVENDER_SVG' },
+            { key:'bouquet',  label:'💐 Букет',    constName:'BOUQUET_SVG' },
+            { key:'flytrap',  label:'🪲 Мухоловка',constName:'FLYTRAP_SVG' },
+            { key:'indie',    label:'🌸 Ромашки',  constName:'INDIE_SVG' },
+            { key:'pump1',    label:'⛽ Насос 1',  constName:'PUMP_SVG' },
+            { key:'pump2',    label:'🏭 Насос 2',  constName:'PUMP_L2_SVG' },
+            { key:'pump3',    label:'🤖 Насос 3',  constName:'PUMP_L3_SVG' },
+            { key:'pump4',    label:'🌋 Насос 4',  constName:'PUMP_L4_SVG' },
+            { key:'pump5',    label:'⚛️ Насос 5',  constName:'PUMP_L5_SVG' },
+            { key:'squirrel', label:'🐿️ Белка',   constName:'PORING_SVG' },
+            { key:'iron',     label:'⛓️ Железо',  constName:'IRON_SVG' },
+            { key:'cat',      label:'🐱 Кот',      constName:'greyCatSvgContent' },
+        ];
+        const spriteImgs = {};   // key → {img, w, h} растры в натуральном размере
+        let spriteTool = null;   // выбранный спрайт для постановки
+        let eraseObjMode = false;
+        const mapObjects = [];   // {tx, ty, key} наши объекты на изо-сетке
+
+        function withSpriteCss(svgStr){
+            return svgStr.replace(/<svg[^>]*>/, m => m + `<style>${SPRITE_CSS}</style>`);
+        }
+        function svgNaturalSize(svgStr){
+            const m = svgStr.match(/viewBox="([\d.\-+\s]+)"/);
+            if(m){
+                const p = m[1].trim().split(/\s+/).map(Number);
+                if(p.length === 4 && p[2] > 0 && p[3] > 0) return { w: Math.round(p[2]), h: Math.round(p[3]) };
+            }
+            return { w: 64, h: 64 };
+        }
+        function withFixedSize(svgStr){
+            // растру нужен явный размер (у игровых SVG width/height = 100%)
+            // и xmlns (без него blob не парсится отдельным документом)
+            const nat = svgNaturalSize(svgStr);
+            return svgStr.replace(/<svg[^>]*>/, m => {
+                let tag = m.replace(/\s(width|height)="[^"]*"/g, '');
+                if(tag.indexOf('xmlns') === -1) tag = tag.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+                return tag.replace(/<svg/, `<svg width="${nat.w}" height="${nat.h}"`);
+            });
+        }
+        function loadSpriteImage(svgStr){
+            return new Promise((resolve, reject)=>{
+                const blob = new Blob([withFixedSize(withSpriteCss(svgStr))], { type:'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = ()=>resolve({ img, url });
+                img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+                img.src = url;
+            });
+        }
+        function toast(msg){
+            const t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;'
+              + 'background:#2a3350;color:#ffd85e;padding:8px 16px;border-radius:8px;font-size:13px;'
+              + 'box-shadow:0 4px 16px #000;';
+            document.body.appendChild(t);
+            setTimeout(()=>t.remove(), 2200);
+        }
+        async function loadGameSprites(){
+            const hint = document.getElementById('obj-palette-hint');
+            let html = '';
+            try {
+                const res = await fetch('../chuv.html');
+                if(!res.ok) throw new Error('HTTP ' + res.status);
+                html = await res.text();
+            } catch(e){
+                if(hint) hint.textContent = '⚠️ Открой через сервер (8080/8931), иначе chuv.html не подтянется';
+                return;
+            }
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            let ok = 0;
+            for(const def of GAME_SPRITES){
+                let svgStr = null;
+                try {
+                    if(def.img){
+                        const im = await new Promise((res, rej)=>{
+                            const ii = new Image();
+                            ii.onload = ()=>res(ii);
+                            ii.onerror = rej;
+                            ii.src = def.img;
+                        });
+                        spriteImgs[def.key] = { img:im, w:def.w || 52, h:def.h || 52 };
+                        ok++;
+                        continue;
+                    }
+                    if(def.inline) svgStr = def.inline;
+                    else if(def.htmlQuery){
+                        const node = doc.querySelector(def.htmlQuery);
+                        if(node) svgStr = node.outerHTML;
+                    } else if(def.constName){
+                        const mm = html.match(new RegExp('const\\s+' + def.constName + '\\s*=\\s*`([\\s\\S]*?)`;'));
+                        if(mm) svgStr = mm[1];
+                    }
+                    if(!svgStr) continue;
+                    // картинки игры лежат рядом с chuv.html — чиним пути из /izo/
+                    svgStr = svgStr.replace(/src="(?!https?:|\/|data:)/g, 'src="../');
+                    const loaded = await loadSpriteImage(svgStr);
+                    const nat = svgNaturalSize(svgStr);
+                    const sc = def.sc || 1;
+                    spriteImgs[def.key] = { img:loaded.img, url:loaded.url, w: Math.round(nat.w*sc), h: Math.round(nat.h*sc) };
+                    ok++;
+                } catch(e){ /* пропускаем битый спрайт */ }
+            }
+            buildObjPalette();
+            if(hint) hint.remove();
+            drawScene();
+        }
+        function buildObjPalette(){
+            const pal = document.getElementById('obj-palette');
+            if(!pal) return;
+            pal.innerHTML = '';
+            for(const def of GAME_SPRITES){
+                const s = spriteImgs[def.key];
+                if(!s) continue;
+                const b = document.createElement('button');
+                b.className = 'p-1 rounded-lg border text-center transition-all text-[10px] flex flex-col items-center gap-1 '
+                    + (spriteTool === def.key
+                        ? 'bg-emerald-600/20 border-emerald-500 text-white font-semibold'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200');
+                const im = document.createElement('img');
+                im.src = s.url || '';
+                im.style.cssText = 'width:40px;height:40px;object-fit:contain;image-rendering:pixelated;pointer-events:none;';
+                im.draggable = false;
+                const lb = document.createElement('span');
+                lb.textContent = def.label;
+                b.appendChild(im); b.appendChild(lb);
+                b.onclick = ()=>{ spriteTool = (spriteTool === def.key) ? null : def.key; eraseObjMode = false; buildObjPalette();
+                    if(spriteTool) toast('Выбран: ' + def.label + ' — кликай по тайлам карты'); };
+                pal.appendChild(b);
+            }
+            document.getElementById('btn-tool-pan').onclick = ()=>{ spriteTool = null; eraseObjMode = false; buildObjPalette(); };
+            document.getElementById('btn-tool-erase-obj').onclick = ()=>{ spriteTool = null; eraseObjMode = true; buildObjPalette(); };
+        }
+        // рассыпать объекты по свободным тайлам (заполнить карту)
+        function scatterObjects(keys, count){
+            keys = keys.filter(k => spriteImgs[k]);
+            if(!keys.length) return;
+            const free = mapContainer.tiles.filter(t => !mapObjects.some(o => o.tx === t.x && o.ty === t.y));
+            for(let i = 0; i < count && free.length; i++){
+                const t = free.splice(Math.floor(Math.random() * free.length), 1)[0];
+                mapObjects.push({ tx:t.x, ty:t.y, key:keys[Math.floor(Math.random() * keys.length)] });
+            }
+            drawScene();
+            updateJSONOutput();
+        }
+
+        // Canvas element setup
+        const canvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Offscreen canvas for crisp pixelation
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            const viewport = document.getElementById('viewport');
+            if (!viewport) return;
+
+            const w = viewport.clientWidth;
+            const h = viewport.clientHeight;
+
+            canvas.width = w;
+            canvas.height = h;
+
+            drawScene();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawScene() {
+            const w = canvas.width;
+            const h = canvas.height;
+            if (w === 0 || h === 0) return;
+
+            const scale = viewState.pixelScale;
+
+            // Prepare target drawing context based on Pixel Art scale
+            let targetCtx = ctx;
+            let targetW = w;
+            let targetH = h;
+
+            if (scale > 1) {
+                targetW = Math.max(1, Math.floor(w / scale));
+                targetH = Math.max(1, Math.floor(h / scale));
+                
+                offscreenCanvas.width = targetW;
+                offscreenCanvas.height = targetH;
+                targetCtx = offscreenCtx;
+            }
+
+            // Clear Canvas
+            targetCtx.fillStyle = '#020617'; // slate-950
+            targetCtx.fillRect(0, 0, targetW, targetH);
+
+            // Turn off image smoothing for hard crisp edges
+            targetCtx.imageSmoothingEnabled = false;
+            targetCtx.mozImageSmoothingEnabled = false;
+            targetCtx.webkitImageSmoothingEnabled = false;
+            targetCtx.msImageSmoothingEnabled = false;
+
+            targetCtx.save();
+
+            // Center view + pan offsets
+            const centerX = Math.floor(targetW / 2 + viewState.offsetX / scale);
+            const centerY = Math.floor(targetH / 3 + viewState.offsetY / scale);
+            targetCtx.translate(centerX, centerY);
+
+            // Isometric tile metrics
+            const tileW = scale > 1 ? Math.floor(48 / scale) : 48;
+            const tileH = scale > 1 ? Math.floor(24 / scale) : 24;
+            const blockH = scale > 1 ? Math.floor(mapContainer.blockHeight / scale) : mapContainer.blockHeight;
+
+            // Render Tiles (Sorted back-to-front by depth: x + y + z)
+            const sortedTiles = [...mapContainer.tiles].sort((a, b) => {
+                const depthA = a.x + a.y + a.z * 0.1;
+                const depthB = b.x + b.y + b.z * 0.1;
+                return depthA - depthB;
+            });
+
+            sortedTiles.forEach(tile => {
+                const isoX = Math.round((tile.x - tile.y) * (tileW / 2));
+                const isoY = Math.round((tile.x + tile.y) * (tileH / 2) - tile.z * blockH);
+
+                drawIsometricBlock(targetCtx, isoX, isoY, tileW, tileH, blockH, mapContainer.colors, tile);
+            });
+
+            // Наши SVG-объекты: чётко попиксельно (сглаживание выкл), сортировка по глубине
+            const sortedObjs = [...mapObjects].sort((a, b) => (a.tx + a.ty) - (b.tx + b.ty));
+            for(const o of sortedObjs){
+                const s = spriteImgs[o.key];
+                if(!s || !s.img.complete || !s.img.naturalWidth) continue;
+                const t = tileAt(o.tx, o.ty);
+                const z = t ? t.z : 0;
+                const isoX = Math.round((o.tx - o.ty) * (tileW / 2));
+                const isoY = Math.round((o.tx + o.ty) * (tileH / 2) - z * blockH);
+                const dw = Math.max(1, Math.round(s.w * tileW / 48));
+                const dh = Math.max(1, Math.round(s.h * tileW / 48));
+                targetCtx.drawImage(s.img, isoX - Math.round(dw / 2), isoY + Math.round(tileH / 2) - dh + 2, dw, dh);
+            }
+
+            targetCtx.restore();
+
+            // Render low-res offscreen canvas onto main canvas if pixelated
+            if (scale > 1) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.mozImageSmoothingEnabled = false;
+                ctx.webkitImageSmoothingEnabled = false;
+                ctx.msImageSmoothingEnabled = false;
+
+                ctx.drawImage(offscreenCanvas, 0, 0, targetW, targetH, 0, 0, w, h);
+            }
+        }
+
+        function drawIsometricBlock(targetCtx, x, y, tw, th, bh, colors, tile) {
+            const hw = Math.round(tw / 2);
+            const hh = Math.round(th / 2);
+
+            // Top Face (Diamond)
+            targetCtx.beginPath();
+            targetCtx.moveTo(x, y - hh);
+            targetCtx.lineTo(x + hw, y);
+            targetCtx.lineTo(x, y + hh);
+            targetCtx.lineTo(x - hw, y);
+            targetCtx.closePath();
+
+            targetCtx.fillStyle = colors.top;
+            targetCtx.fill();
+
+            if (viewState.showGrid) {
+                targetCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+                targetCtx.lineWidth = 1;
+                targetCtx.stroke();
+            }
+
+            // Left Face
+            targetCtx.beginPath();
+            targetCtx.moveTo(x - hw, y);
+            targetCtx.lineTo(x, y + hh);
+            targetCtx.lineTo(x, y + hh + bh);
+            targetCtx.lineTo(x - hw, y + bh);
+            targetCtx.closePath();
+
+            targetCtx.fillStyle = colors.left;
+            targetCtx.fill();
+
+            if (viewState.showGrid) {
+                targetCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+                targetCtx.stroke();
+            }
+
+            // Right Face
+            targetCtx.beginPath();
+            targetCtx.moveTo(x, y + hh);
+            targetCtx.lineTo(x + hw, y);
+            targetCtx.lineTo(x + hw, y + bh);
+            targetCtx.lineTo(x, y + hh + bh);
+            targetCtx.closePath();
+
+            targetCtx.fillStyle = colors.right;
+            targetCtx.fill();
+
+            if (viewState.showGrid) {
+                targetCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+                targetCtx.stroke();
+            }
+
+            // Draw Pixel Decorations on top face
+            if (tile.decor && tile.decor !== 'none') {
+                drawDecoration(targetCtx, x, y, tw, th, tile.decor);
+            }
+
+            // Draw Collision / Walkable Debug Overlay
+            if (viewState.showCollisionDebug) {
+                targetCtx.beginPath();
+                targetCtx.moveTo(x, y - hh);
+                targetCtx.lineTo(x + hw, y);
+                targetCtx.lineTo(x, y + hh);
+                targetCtx.lineTo(x - hw, y);
+                targetCtx.closePath();
+
+                targetCtx.fillStyle = tile.walkable ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.4)';
+                targetCtx.fill();
+            }
+        }
+
+        function drawDecoration(targetCtx, x, y, tw, th, decor) {
+            const s = Math.max(1, Math.round(tw / 32));
+
+            targetCtx.save();
+            targetCtx.translate(x, y);
+
+            if (decor === 'flower_red') {
+                drawPixelFlowers(targetCtx, s, '#ef4444');
+            } else if (decor === 'flower_yellow') {
+                drawPixelFlowers(targetCtx, s, '#facc15');
+            } else if (decor === 'stump') {
+                // Pixel Stump
+                const p = Math.max(1, Math.round(2 * s));
+                targetCtx.fillStyle = '#78350f';
+                targetCtx.fillRect(-p * 2, -p * 3, p * 4, p * 4);
+                targetCtx.fillStyle = '#fde047';
+                targetCtx.fillRect(-p * 1.5, -p * 2.5, p * 3, p * 2);
+            } else if (decor === 'rock') {
+                // Pixel Rock
+                const p = Math.max(1, Math.round(2 * s));
+                targetCtx.fillStyle = '#64748b';
+                targetCtx.fillRect(-p * 2, -p * 2, p * 4, p * 3);
+                targetCtx.fillStyle = '#94a3b8';
+                targetCtx.fillRect(-p * 1.5, -p * 2, p * 2, p * 1.5);
+            } else if (decor === 'mushroom') {
+                // Pixel Mushroom
+                const p = Math.max(1, Math.round(1.5 * s));
+                targetCtx.fillStyle = '#f87171';
+                targetCtx.fillRect(-p * 2, -p * 3, p * 4, p * 2);
+                targetCtx.fillStyle = '#f8fafc';
+                targetCtx.fillRect(-p * 0.5, -p, p, p * 2);
+            } else if (decor === 'grass_tuft') {
+                // Grass Tuft
+                const p = Math.max(1, Math.round(1.5 * s));
+                targetCtx.fillStyle = '#15803d';
+                targetCtx.fillRect(-p * 2, -p * 2, p, p * 3);
+                targetCtx.fillRect(p, -p * 2.5, p, p * 3.5);
+            }
+
+            targetCtx.restore();
+        }
+
+        function drawPixelFlowers(targetCtx, s, color) {
+            const p = Math.max(1, Math.round(2 * s));
+            targetCtx.fillStyle = color;
+            targetCtx.fillRect(-Math.round(3 * s), -Math.round(3 * s), p * 2, p * 2);
+            targetCtx.fillStyle = '#fef08a';
+            targetCtx.fillRect(-Math.round(3 * s) + Math.round(p / 2), -Math.round(3 * s) + Math.round(p / 2), Math.max(1, Math.round(p / 2)), Math.max(1, Math.round(p / 2)));
+
+            targetCtx.fillStyle = color;
+            targetCtx.fillRect(Math.round(2 * s), Math.round(1 * s), p * 1.5, p * 1.5);
+        }
+
+        function tileAt(tx, ty){
+            return mapContainer.tiles.find(t => t.x === tx && t.y === ty) || null;
+        }
+        function pickTile(clientX, clientY){
+            const r = canvas.getBoundingClientRect();
+            const scale = viewState.pixelScale;
+            // экран → координаты канваса → координаты offscreen (если пикселизация)
+            let px = (clientX - r.left) * (canvas.width / Math.max(1, r.width));
+            let py = (clientY - r.top) * (canvas.height / Math.max(1, r.height));
+            if(scale > 1){ px = px / scale; py = py / scale; }
+            const targetW = scale > 1 ? Math.floor(canvas.width / scale) : canvas.width;
+            const targetH = scale > 1 ? Math.floor(canvas.height / scale) : canvas.height;
+            const tileW = scale > 1 ? Math.floor(48 / scale) : 48;
+            const tileH = scale > 1 ? Math.floor(24 / scale) : 24;
+            const blockH = scale > 1 ? Math.floor(mapContainer.blockHeight / scale) : mapContainer.blockHeight;
+            const cx = Math.floor(targetW / 2 + viewState.offsetX / scale);
+            const cy = Math.floor(targetH / 3 + viewState.offsetY / scale);
+            const lx = px - cx, ly = py - cy;
+            let best = null, bestScore = Infinity;
+            for(const t of mapContainer.tiles){
+                const isoX = Math.round((t.x - t.y) * (tileW / 2));
+                const isoY = Math.round((t.x + t.y) * (tileH / 2) - t.z * blockH);
+                const dx = Math.abs(lx - isoX) / (tileW / 2), dy = Math.abs(ly - isoY) / (tileH / 2);
+                const score = dx + dy;
+                if(score <= 1 && score < bestScore){ bestScore = score; best = t; }
+            }
+            return best;
+        }
+        function renderBiomeSelector() {
+            const container = document.getElementById('biome-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            BIOMES.forEach(biome => {
+                const btn = document.createElement('button');
+                const isSelected = mapContainer.biome === biome.id;
+                btn.className = `p-2 rounded-lg border text-left transition-all text-xs flex flex-col gap-1 ${
+                    isSelected 
+                        ? 'bg-emerald-600/20 border-emerald-500 text-white font-semibold' 
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                }`;
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full border border-white/20 shrink-0" style="background-color: ${biome.colors.top}"></span>
+                        <span class="truncate">${biome.name}</span>
+                    </div>
+                `;
+
+                btn.onclick = () => {
+                    mapContainer.biome = biome.id;
+                    mapContainer.colors = { ...biome.colors };
+                    syncColorInputs();
+                    renderBiomeSelector();
+                    generateMapContainer();
+                    drawScene();
+                };
+
+                container.appendChild(btn);
+            });
+        }
+
+        function syncColorInputs() {
+            document.getElementById('color-top').value = mapContainer.colors.top;
+            document.getElementById('color-left').value = mapContainer.colors.left;
+            document.getElementById('color-right').value = mapContainer.colors.right;
+            document.getElementById('color-cliff').value = mapContainer.colors.cliff;
+        }
+
+        function updateJSONOutput() {
+            const jsonElem = document.getElementById('json-output');
+            if (jsonElem) {
+                jsonElem.textContent = JSON.stringify(mapContainer, null, 2);
+            }
+            const countElem = document.getElementById('tile-count-display');
+            if (countElem) {
+                countElem.innerText = mapContainer.tiles.length + mapObjects.length;
+            }
+        }
+
+        function generateMapContainer() {
+            const size = parseInt(document.getElementById('slider-grid-size').value, 10);
+            const blockH = parseInt(document.getElementById('slider-block-height').value, 10);
+            const roughness = parseInt(document.getElementById('slider-roughness').value, 10) / 100;
+
+            const flowerDensity = parseInt(document.getElementById('slider-flower-density').value, 10) / 100;
+            const stumpDensity = parseInt(document.getElementById('slider-stump-density').value, 10) / 100;
+            const rockDensity = parseInt(document.getElementById('slider-rock-density').value, 10) / 100;
+
+            mapContainer.gridSize = size;
+            mapContainer.blockHeight = blockH;
+            mapContainer.tiles = [];
+
+            let seed = currentSeed;
+            function localRnd() {
+                let x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
+            }
+
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    const noise = (Math.sin(x * 0.8) + Math.cos(y * 0.8)) * roughness * 2;
+                    let z = Math.round(noise);
+                    if (z < 0) z = 0;
+
+                    let decor = 'none';
+                    let walkable = true;
+                    let tileType = 'ground';
+
+                    const roll = localRnd();
+
+                    if (roll < flowerDensity) {
+                        decor = localRnd() > 0.5 ? 'flower_red' : 'flower_yellow';
+                    } else if (roll < flowerDensity + stumpDensity) {
+                        decor = localRnd() > 0.5 ? 'stump' : 'grass_tuft';
+                        if (decor === 'stump') walkable = false;
+                    } else if (roll < flowerDensity + stumpDensity + rockDensity) {
+                        decor = localRnd() > 0.5 ? 'rock' : 'mushroom';
+                        if (decor === 'rock') walkable = false;
+                    }
+
+                    mapContainer.tiles.push({
+                        x: x,
+                        y: y,
+                        z: z,
+                        type: tileType,
+                        decor: decor,
+                        walkable: walkable
+                    });
+                }
+            }
+
+            updateJSONOutput();
+        }
+
+        function bindEvents() {
+            // Slider Grid Size
+            const sliderSize = document.getElementById('slider-grid-size');
+            sliderSize.addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('val-grid-size').innerText = `${val}x${val}`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            // Slider Block Height
+            const sliderHeight = document.getElementById('slider-block-height');
+            sliderHeight.addEventListener('input', (e) => {
+                document.getElementById('val-block-height').innerText = `${e.target.value}px`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            // Slider Roughness
+            const sliderRough = document.getElementById('slider-roughness');
+            sliderRough.addEventListener('input', (e) => {
+                document.getElementById('val-roughness').innerText = `${e.target.value}%`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            // Regenerate Button
+            document.getElementById('btn-regenerate').addEventListener('click', () => {
+                currentSeed = Math.floor(Math.random() * 100000);
+                generateMapContainer();
+                drawScene();
+            });
+
+            // Decor Sliders
+            document.getElementById('slider-flower-density').addEventListener('input', (e) => {
+                document.getElementById('val-flower-density').innerText = `${e.target.value}%`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            document.getElementById('slider-stump-density').addEventListener('input', (e) => {
+                document.getElementById('val-stump-density').innerText = `${e.target.value}%`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            document.getElementById('slider-rock-density').addEventListener('input', (e) => {
+                document.getElementById('val-rock-density').innerText = `${e.target.value}%`;
+                generateMapContainer();
+                drawScene();
+            });
+
+            // Colors
+            ['top', 'left', 'right', 'cliff'].forEach(key => {
+                const input = document.getElementById(`color-${key}`);
+                if (input) {
+                    input.addEventListener('input', (e) => {
+                        mapContainer.colors[key] = e.target.value;
+                        drawScene();
+                        updateJSONOutput();
+                    });
+                }
+            });
+
+            // Pixel scale slider
+            const pixelSlider = document.getElementById('slider-pixel-scale');
+            pixelSlider.addEventListener('input', (e) => {
+                const scale = parseInt(e.target.value, 10);
+                viewState.pixelScale = scale;
+                document.getElementById('val-pixel-scale').innerText = scale === 1 ? 'Выкл (1x Вектор)' : `${scale}x Pixel Art`;
+                drawScene();
+            });
+
+            // Toggles
+            document.getElementById('toggle-grid-lines').addEventListener('change', (e) => {
+                viewState.showGrid = e.target.checked;
+                drawScene();
+            });
+
+            document.getElementById('toggle-walkable-debug').addEventListener('change', (e) => {
+                viewState.showCollisionDebug = e.target.checked;
+                drawScene();
+            });
+
+            // Viewport & Pan Handlers
+            const viewport = document.getElementById('viewport');
+            
+            const handleStart = (e) => {
+                isDragging = true;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                startX = clientX - viewState.offsetX;
+                startY = clientY - viewState.offsetY;
+            };
+
+            const handleMove = (e) => {
+                if (!isDragging) return;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                viewState.offsetX = clientX - startX;
+                viewState.offsetY = clientY - startY;
+                drawScene();
+            };
+
+            const handleEnd = () => {
+                isDragging = false;
+            };
+
+            viewport.addEventListener('mousedown', handleStart);
+            viewport.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleEnd);
+
+            viewport.addEventListener('touchstart', handleStart, { passive: true });
+            viewport.addEventListener('touchmove', handleMove, { passive: true });
+            window.addEventListener('touchend', handleEnd);
+
+            // Постановка наших объектов кликом (без перетаскивания)
+            let downPos = null, downBtn = 0;
+            viewport.addEventListener('mousedown', (e)=>{ downPos = { x:e.clientX, y:e.clientY }; downBtn = e.button; });
+            viewport.addEventListener('contextmenu', (e)=>e.preventDefault());
+            window.addEventListener('mouseup', (e)=>{
+                if(!downPos) return;
+                const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+                const btn = downBtn;
+                downPos = null;
+                if(moved > 5) return;
+                const t = pickTile(e.clientX, e.clientY);
+                if(!t) return;
+                if(btn === 2 || eraseObjMode){
+                    const i = mapObjects.findIndex(o => o.tx === t.x && o.ty === t.y);
+                    if(i >= 0){ mapObjects.splice(i, 1); drawScene(); updateJSONOutput(); }
+                    return;
+                }
+                if(btn !== 0 || !spriteTool) return;
+                const j = mapObjects.findIndex(o => o.tx === t.x && o.ty === t.y);
+                if(j >= 0) mapObjects.splice(j, 1);
+                mapObjects.push({ tx:t.x, ty:t.y, key:spriteTool });
+                drawScene();
+                updateJSONOutput();
+            });
+
+            // Reset View
+            document.getElementById('btn-reset-view').addEventListener('click', () => {
+                viewState.offsetX = 0;
+                viewState.offsetY = 0;
+                drawScene();
+            });
+
+            // JSON / SVG Export & Import
+            document.getElementById('btn-export-json').addEventListener('click', exportJSONContainer);
+            document.getElementById('btn-copy-code').addEventListener('click', copyJSONContainer);
+            document.getElementById('btn-copy-json-bottom').addEventListener('click', copyJSONContainer);
+            document.getElementById('input-import-json').addEventListener('change', importJSONContainer);
+            document.getElementById('btn-export-svg').addEventListener('click', exportMapSVG);
+            document.getElementById('btn-export-game').addEventListener('click', exportGameMap);
+            document.getElementById('btn-export-png').addEventListener('click', ()=>{
+                drawScene();
+                const a = document.createElement('a');
+                a.href = canvas.toDataURL('image/png');
+                a.download = `isometric_map_${mapContainer.biome}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+            document.getElementById('btn-scatter-flowers').addEventListener('click', ()=>{
+                scatterObjects(['flowers','lavender','bouquet','flytrap','indie'], 60);
+                toast('🌸 Цветы рассыпаны по карте');
+            });
+            document.getElementById('btn-scatter-trees').addEventListener('click', ()=>{
+                scatterObjects(['oak'], 18);
+                toast('🌳 Дубы рассажены');
+            });
+        }
+
+        function exportJSONContainer() {
+            const payload = Object.assign({}, mapContainer, { objects: mapObjects });
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `isometric_ground_map_${mapContainer.biome}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Экспорт игровой map.json: объекты/цветы едут в игру 1:1 (тайл 32px = 32px мира),
+        // насосы/мобы — статичными картинками (customObjects), дороги/поле — по умолчанию.
+        function spritePNG(key){
+            const s = spriteImgs[key];
+            if(!s || !s.img.naturalWidth) return null;
+            const c = document.createElement('canvas');
+            c.width = s.w; c.height = s.h;
+            const x = c.getContext('2d');
+            x.imageSmoothingEnabled = false;
+            x.drawImage(s.img, 0, 0, s.w, s.h);
+            return c.toDataURL('image/png');
+        }
+        function exportGameMap(){
+            const at = (k)=>mapObjects.filter(o=>o.key===k).map(o=>({ x:o.tx*32, y:o.ty*32 }));
+            const first = (k, fb)=>{ const o = mapObjects.find(o=>o.key===k); return o ? { x:o.tx*32, y:o.ty*32 } : fb; };
+            const flowers = [];
+            ['flowers','lavender','bouquet','flytrap','indie'].forEach(k=>at(k).forEach(p=>flowers.push([p.x, p.y])));
+            const chicks = at('chick');
+            while(chicks.length < 4) chicks.push({ x:1000 + chicks.length*50, y:1080 });
+            const lamps = at('lamp').map(p=>[p.x, p.y]);
+            while(lamps.length < 4) lamps.push([[560,700],[810,700],[560,980],[810,980]][lamps.length]);
+            const pond = first('pond', { x:320, y:1116 });
+            const customObjects = [];
+            ['pump1','pump2','pump3','pump4','pump5','squirrel','iron','cat'].forEach(k=>{
+                at(k).forEach(p=>{
+                    const png = spritePNG(k);
+                    if(!png) return;
+                    const s = spriteImgs[k];
+                    customObjects.push({ name:k, asset:png,
+                        frameW:s.w, frameH:s.h, frames:1, fps:0, scale:1,
+                        x:p.x, y:p.y, w:s.w, h:s.h });
+                });
+            });
+            const data = {
+                _comment: 'Exported from izo editor. Drop as map.json next to chuv.html, open game via server.',
+                name: 'izo export', version: 1,
+                size: { w: GW*32, h: GH*32 },
+                background: { color:'#80bd3f', tile:'zem.jpg', tilesPerScreen:[2,2] },
+                playerStart: { x:695, y:1080 },
+                roads: [
+                    { x:0, y:770, w:1560, h:150 },
+                    { x:610, y:0, w:170, h:1800 }
+                ],
+                fountain: first('fountain', { x:695, y:845 }),
+                lamps,
+                objects: [
+                    Object.assign({ type:'shop' }, first('shop', { x:320, y:430 })),
+                    Object.assign({ type:'table' }, first('table', { x:1080, y:1120 })),
+                    Object.assign({ type:'pond' }, pond),
+                    Object.assign({ type:'fish' }, { x:pond.x + 96, y:pond.y + 36 }),
+                    Object.assign({ type:'palm' }, first('palm', { x:1230, y:990 })),
+                    ...chicks.slice(0, 8).map(c=>({ type:'chick', x:c.x, y:c.y })),
+                    ...at('oak').map(c=>({ type:'tree', x:c.x, y:c.y }))
+                ],
+                flowers,
+                field: { x0:1650, y0:80, x1:3120, y1:1720, sign:[1760, 640] },
+                spawns: { porings:8, ironRocks:8, coins:4 },
+                customObjects
+            };
+            const blob = new Blob([JSON.stringify(data, null, 1)], { type:'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'map.json';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+        }
+
+        function copyJSONContainer() {
+            const jsonText = JSON.stringify(Object.assign({}, mapContainer, { objects: mapObjects }), null, 2);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(jsonText);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = jsonText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function importJSONContainer(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const imported = JSON.parse(event.target.result);
+                    if (imported && imported.tiles && Array.isArray(imported.tiles)) {
+                        mapContainer = imported;
+                        if (Array.isArray(imported.objects)) {
+                            mapObjects.length = 0;
+                            for(const o of imported.objects){
+                                if(o && Number.isFinite(o.tx) && Number.isFinite(o.ty) && spriteImgs[o.key]) {
+                                    mapObjects.push({ tx:o.tx|0, ty:o.ty|0, key:o.key });
+                                }
+                            }
+                        }
+                        syncColorInputs();
+                        renderBiomeSelector();
+                        drawScene();
+                        updateJSONOutput();
+                    }
+                } catch (err) {
+                    console.error("Invalid JSON container file", err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportMapSVG() {
+            const tw = 48;
+            const th = 24;
+            const bh = mapContainer.blockHeight;
+            const colors = mapContainer.colors;
+
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+            mapContainer.tiles.forEach(tile => {
+                const isoX = (tile.x - tile.y) * (tw / 2);
+                const isoY = (tile.x + tile.y) * (th / 2) - tile.z * bh;
+                if (isoX < minX) minX = isoX;
+                if (isoX > maxX) maxX = isoX;
+                if (isoY < minY) minY = isoY;
+                if (isoY > maxY) maxY = isoY;
+            });
+
+            const margin = 80;
+            const width = Math.ceil((maxX - minX) + tw + margin * 2);
+            const height = Math.ceil((maxY - minY) + th + bh + margin * 2);
+            const shiftX = -minX + margin;
+            const shiftY = -minY + margin;
+
+            let svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">\n`;
+            svgString += `<rect width="100%" height="100%" fill="#020617" />\n`;
+            svgString += `<g transform="translate(${shiftX}, ${shiftY})">\n`;
+
+            const sortedTiles = [...mapContainer.tiles].sort((a, b) => (a.x + a.y + a.z * 0.1) - (b.x + b.y + b.z * 0.1));
+
+            sortedTiles.forEach(tile => {
+                const x = (tile.x - tile.y) * (tw / 2);
+                const y = (tile.x + tile.y) * (th / 2) - tile.z * bh;
+                const hw = tw / 2;
+                const hh = th / 2;
+
+                // Top
+                svgString += `  <polygon points="${x},${y - hh} ${x + hw},${y} ${x},${y + hh} ${x - hw},${y}" fill="${colors.top}" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>\n`;
+                // Left
+                svgString += `  <polygon points="${x - hw},${y} ${x},${y + hh} ${x},${y + hh + bh} ${x - hw},${y + bh}" fill="${colors.left}" stroke="rgba(0,0,0,0.2)" stroke-width="0.5"/>\n`;
+                // Right
+                svgString += `  <polygon points="${x},${y + hh} ${x + hw},${y} ${x + hw},${y + bh} ${x},${y + hh + bh}" fill="${colors.right}" stroke="rgba(0,0,0,0.3)" stroke-width="0.5"/>\n`;
+            });
+
+            svgString += `</g>\n</svg>`;
+
+            const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `isometric_map_${mapContainer.biome}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        // Initialize App on Window Load
+        window.onload = () => {
+            renderBiomeSelector();
+            syncColorInputs();
+            bindEvents();
+            generateMapContainer();
+            resizeCanvas();
+            loadGameSprites();
+        };
+        window.__izoDebug = ()=>({ tool:spriteTool, erase:eraseObjMode,
+            objs:mapObjects.length, sprites:Object.keys(spriteImgs),
+            paletteBtns:document.querySelectorAll('#obj-palette button').length });
+    </script>
+</body>
+</html>

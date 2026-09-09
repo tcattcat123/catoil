@@ -1,0 +1,976 @@
+/* ==========================================================================
+   VINTAGE MACINTOSH 128K / SYSTEM 7 RESUME DESIGN SYSTEM
+   ========================================================================== */
+
+:root {
+  /* Vintage Macintosh Beige Computer Hardware Enclosure */
+  --mac-case-bg: #ded6c2;
+  --mac-case-light: #ece6d8;
+  --mac-case-shadow: #b3a992;
+  --mac-case-dark: #827863;
+
+  /* System 7 Monochrome / Grayscale UI Palette */
+  --mac-ui-bg: #ffffff;
+  --mac-ui-face: #e0e0e0;
+  --mac-ui-border: #000000;
+  --mac-desktop-bg: #808080;
+  
+  --font-chicago: 'VT323', 'Fira Code', 'Geneva', Monaco, monospace;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #161412;
+  color: #000000;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 6px;
+}
+
+/* --------------------------------------------------------------------------
+   1. MACINTOSH HARDWARE MONITOR FRAME (КРАЯ МОНИТОРА)
+   -------------------------------------------------------------------------- */
+.mac-hardware-bezel {
+  width: 100%;
+  max-width: 960px;
+  background-color: var(--mac-case-bg);
+  border: 4px solid var(--mac-case-light);
+  border-right-color: var(--mac-case-shadow);
+  border-bottom-color: var(--mac-case-dark);
+  border-radius: 20px;
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.8),
+    inset 0 2px 4px rgba(255, 255, 255, 0.7),
+    inset 0 -4px 10px rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* Bezel Top Header Row */
+.mac-bezel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mac-power-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #33ff33;
+  box-shadow: 0 0 8px #33ff33, inset 0 0 2px #ffffff;
+  border: 1px solid #1a801a;
+  flex-shrink: 0;
+}
+
+.mac-logo-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-chicago);
+  font-size: 16px;
+  font-weight: bold;
+  color: #4a4234;
+  letter-spacing: 0.5px;
+}
+
+.mac-controls-row {
+  display: flex;
+  gap: 6px;
+}
+
+.mac-bezel-btn {
+  background-color: var(--mac-case-light);
+  border: 2px solid var(--mac-case-shadow);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-chicago);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+  color: #333;
+  white-space: nowrap;
+}
+
+.mac-bezel-btn:active {
+  background-color: var(--mac-case-shadow);
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* --------------------------------------------------------------------------
+   2. CRT SCREEN FRAME & GLASS EFFECTS
+   -------------------------------------------------------------------------- */
+.crt-screen-frame {
+  width: 100%;
+  background-color: #111;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  border: 6px solid #2a251e;
+  box-shadow: 
+    inset 0 0 25px rgba(0, 0, 0, 0.95),
+    inset 0 0 8px rgba(0, 0, 0, 0.9);
+}
+
+/* CRT Scanlines Overlay */
+.crt-scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.22) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 99;
+  opacity: 0.7;
+}
+
+body.no-crt .crt-scanlines {
+  display: none;
+}
+
+/* CRT Curved Glass Reflection Glare */
+.crt-glass-glare {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    135deg, 
+    rgba(255, 255, 255, 0.07) 0%, 
+    rgba(255, 255, 255, 0.02) 40%, 
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* --------------------------------------------------------------------------
+   3. SYSTEM 7 DESKTOP ENVIRONMENT
+   -------------------------------------------------------------------------- */
+.mac-desktop {
+  background-color: #7d848f;
+  background-image: 
+    radial-gradient(#5a606a 1.5px, transparent 1.5px),
+    radial-gradient(#5a606a 1.5px, #7d848f 1.5px);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* System 7 Top Menu Bar */
+.mac-menu-bar {
+  background-color: #ffffff;
+  border-bottom: 2px solid #000000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 6px;
+  height: 24px;
+  font-family: var(--font-chicago);
+  font-size: 15px;
+  user-select: none;
+  position: relative;
+  z-index: 1000;
+}
+
+.mac-menu-left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.mac-menu-item {
+  padding: 2px 6px;
+  cursor: pointer;
+  position: relative;
+  font-weight: bold;
+}
+
+.mac-menu-item:hover, .mac-menu-item.active {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.mac-menu-item:hover svg path {
+  fill: #ffffff;
+}
+
+.mac-menu-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+}
+
+.mac-clock {
+  font-size: 14px;
+}
+
+/* Dropdown Menus */
+.mac-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0 #000000;
+  min-width: 170px;
+  display: none;
+  flex-direction: column;
+  z-index: 2000;
+  color: #000000;
+}
+
+.mac-menu-item.active .mac-dropdown {
+  display: flex;
+}
+
+.dropdown-item {
+  padding: 4px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item.bold {
+  font-weight: bold;
+}
+
+.dropdown-item:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #000000;
+  margin: 2px 0;
+}
+
+/* Workspace Area */
+.mac-workspace {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  width: 100%;
+}
+
+/* Desktop Icons Row (Top Toolbar style on desktop/mobile) */
+.desktop-icons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 4px 6px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border: 1px solid #000;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.mac-desktop-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px 8px;
+  background: #ffffff;
+  border: 1px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.icon-img-box {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-label {
+  font-family: var(--font-chicago);
+  font-size: 13px;
+  color: #000000;
+  font-weight: bold;
+}
+
+.mac-desktop-icon:active, .mac-desktop-icon:hover {
+  background-color: #000000;
+}
+
+.mac-desktop-icon:active .icon-label, .mac-desktop-icon:hover .icon-label {
+  color: #ffffff;
+}
+.mac-desktop-icon:active svg rect, .mac-desktop-icon:hover svg rect {
+  fill: #000;
+  stroke: #fff;
+}
+.mac-desktop-icon:active svg line, .mac-desktop-icon:hover svg line {
+  stroke: #fff;
+}
+.mac-desktop-icon:active svg path, .mac-desktop-icon:hover svg path {
+  stroke: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   4. SYSTEM 7 MAIN WINDOW STYLING
+   -------------------------------------------------------------------------- */
+.mac-window {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0 #000000;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.mac-window-titlebar {
+  background-color: #ffffff;
+  border-bottom: 2px solid #000000;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  gap: 6px;
+  user-select: none;
+}
+
+.go-away-box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #000000;
+  background-color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.go-away-box:active {
+  background-color: #000000;
+}
+
+.zoom-box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #000000;
+  background-color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.zoom-box::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid #000;
+  border-right: 1px solid #000;
+}
+
+.titlebar-stripes {
+  flex: 1;
+  height: 14px;
+  background: repeating-linear-gradient(
+    180deg,
+    #000000,
+    #000000 1px,
+    #ffffff 1px,
+    #ffffff 3px
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  overflow: hidden;
+}
+
+.window-title-text {
+  font-family: var(--font-chicago);
+  font-size: 15px;
+  font-weight: bold;
+  background-color: #ffffff;
+  padding: 0 6px;
+  color: #000000;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* Window Content Body */
+.mac-window-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   5. MAC HERO SECTION
+   -------------------------------------------------------------------------- */
+.mac-hero-card {
+  display: grid;
+  grid-template-columns: 1fr 210px;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 2px solid #000;
+  background-color: #fdfdfd;
+}
+
+.mac-badge {
+  display: inline-block;
+  background-color: #000000;
+  color: #ffffff;
+  font-family: var(--font-chicago);
+  font-size: 13px;
+  padding: 2px 6px;
+  margin-bottom: 6px;
+}
+
+.hero-title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 6px;
+  word-wrap: break-word;
+}
+
+.hero-subtitle {
+  font-size: 14.5px;
+  color: #333;
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+
+.mac-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mac-btn {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  padding: 4px 10px;
+  font-family: var(--font-chicago);
+  font-size: 13.5px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000000;
+  transition: transform 0.05s;
+}
+
+.mac-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.mac-btn:active, .mac-btn.active {
+  background-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+.mac-btn.bold {
+  font-size: 14.5px;
+}
+
+/* Mini Dialog Widget */
+.mini-mac-dialog {
+  box-shadow: 2px 2px 0 #000;
+}
+
+.mini-bar {
+  height: 18px;
+}
+
+.mini-dialog-content {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sparkline-box {
+  border: 1px solid #000;
+  background: #fff;
+  height: 36px;
+}
+
+.status-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-chicago);
+  font-size: 12px;
+}
+
+.mac-progress-track {
+  border: 2px solid #000;
+  height: 14px;
+  padding: 1px;
+  background: #fff;
+}
+
+.mac-progress-fill {
+  height: 100%;
+  width: 90%;
+  background-color: #000;
+  animation: macProgress 2s infinite alternate ease-in-out;
+}
+
+@keyframes macProgress {
+  0% { width: 40%; }
+  100% { width: 95%; }
+}
+
+/* --------------------------------------------------------------------------
+   6. PANELS (TIMELINE, SKILLS, EXTRA)
+   -------------------------------------------------------------------------- */
+.mac-panel {
+  border: 2px solid #000000;
+}
+
+.mac-panel-header {
+  background-color: #000000;
+  color: #ffffff;
+  padding: 4px 10px;
+}
+
+.panel-header-title {
+  font-family: var(--font-chicago);
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.mac-panel-content {
+  padding: 12px;
+  background-color: #ffffff;
+}
+
+/* Timeline */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  padding: 10px 0;
+  border-bottom: 1px dashed #666;
+  gap: 8px;
+}
+
+.timeline-item:last-child {
+  border-bottom: none;
+}
+
+.timeline-year {
+  font-family: var(--font-chicago);
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.timeline-right {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.mac-highlight {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Skills Grid */
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.skill-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid #000;
+  background: #fdfdfd;
+}
+
+.skill-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.skill-desc {
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+
+/* Extra List */
+.extra-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.extra-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #666;
+}
+
+.extra-item:last-child {
+  border-bottom: none;
+}
+
+.folder-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.extra-info h3 {
+  font-size: 14.5px;
+  font-weight: bold;
+}
+
+.extra-info p {
+  font-size: 13.5px;
+  color: #333;
+}
+
+/* CTA BOX */
+.mac-cta-box {
+  border: 2px solid #000;
+  padding: 14px;
+  text-align: center;
+  background-color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.mac-cta-box h2 {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.cta-btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   7. HARDWARE FLOPPY DRIVE BEZEL BOTTOM
+   -------------------------------------------------------------------------- */
+.mac-bezel-bottom {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.floppy-drive-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.floppy-slot-opening {
+  width: 140px;
+  height: 6px;
+  background-color: #1a1714;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.floppy-label {
+  font-family: var(--font-chicago);
+  font-size: 11px;
+  color: #595041;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   8. MODAL WINDOWS
+   -------------------------------------------------------------------------- */
+.modal-window {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92%;
+  max-width: 440px;
+  z-index: 10001;
+}
+
+.modal-window.hidden {
+  display: none;
+}
+
+.modal-body {
+  padding: 12px;
+  background-color: #ffffff;
+}
+
+.mac-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.mac-form-group label {
+  font-family: var(--font-chicago);
+  font-size: 13.5px;
+  font-weight: bold;
+}
+
+.mac-input {
+  border: 2px solid #000;
+  padding: 6px 8px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  outline: none;
+  width: 100%;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.direct-contacts {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed #000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.badge-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Calc Results */
+.calc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.calc-results-box {
+  border: 2px solid #000;
+  padding: 8px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.calc-row.highlight {
+  font-weight: bold;
+  border-top: 1px dashed #000;
+  padding-top: 4px;
+}
+
+/* Terminal */
+.mac-term-body {
+  background-color: #000000;
+  color: #00ff00;
+  font-family: var(--font-chicago);
+  font-size: 14px;
+}
+
+.term-logs {
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.term-cmd {
+  color: #ffff00;
+}
+
+.term-line {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.term-input-field {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-family: var(--font-chicago);
+  font-size: 14px;
+  flex: 1;
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   9. MOBILE OPTIMIZATIONS (ДЛЯ ДИРЕКТОРА НА ТЕЛЕФОНЕ 📱)
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  body {
+    padding: 4px 2px;
+  }
+  
+  .mac-hardware-bezel {
+    padding: 8px;
+    border-radius: 12px;
+    border-width: 2px;
+  }
+
+  .mac-logo-badge span {
+    font-size: 13px;
+  }
+
+  .mac-bezel-btn {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .crt-screen-frame {
+    border-width: 4px;
+    border-radius: 8px;
+  }
+
+  .mac-menu-bar {
+    font-size: 13px;
+    padding: 0 4px;
+  }
+
+  .mac-menu-left {
+    gap: 6px;
+  }
+
+  .mac-menu-item {
+    padding: 2px 3px;
+  }
+
+  .mac-hero-card {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-title {
+    font-size: 20px;
+  }
+
+  .hero-subtitle {
+    font-size: 13.5px;
+  }
+
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-item {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .timeline-year {
+    color: #000;
+    font-size: 14px;
+  }
+
+  .calc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-btn-row {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .cta-btn-row .mac-btn,
+  .cta-btn-row a.mac-btn {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+    display: block;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .mac-tags-row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mac-cta-box {
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mac-window-body {
+    padding: 8px;
+    overflow-x: hidden;
+  }
+
+  .mac-hero-card {
+    overflow-x: hidden;
+  }
+}

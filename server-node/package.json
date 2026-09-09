@@ -1,0 +1,16 @@
+{
+  "name": "pixel-world-server",
+  "version": "1.0.0",
+  "description": "Pixel World multiplayer relay: static files + WebSocket room (replaces server.py)",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

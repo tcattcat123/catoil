@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vitaliy Petrov — Pixel Resume World</title>
+  <meta name="description" content="Интерактивное резюме Виталия Петрова (Vitaliy Petrov). Исследуйте пиксельный мир, посетите Магазин Резюме и котика!">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Fira+Code:wght@600&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #2d5a27;
+      color: #ffffff;
+      touch-action: manipulation;
+    }
+
+    /* --------------------------------------------------------------------------
+       1. GAME WORLD WITH GRASS, RIVER & TREES
+       -------------------------------------------------------------------------- */
+    #world {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      /* Vibrant Pixel Grass Background */
+      background-color: #4a8f33;
+      background-image: 
+        radial-gradient(#3c7928 2px, transparent 2px),
+        radial-gradient(#58a43d 1.5px, #4a8f33 1.5px);
+      background-size: 16px 16px;
+      background-position: 0 0, 8px 8px;
+      cursor: crosshair;
+      overflow: hidden;
+    }
+
+    /* PIXEL RIVER (ГОЛУБАЯ РЕЧКАС С МОСТИКОМ) */
+    .pixel-river {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 32%;
+      width: 64px;
+      background-color: #2b82c9;
+      background-image: 
+        linear-gradient(90deg, rgba(255,255,255,0.2) 2px, transparent 2px),
+        repeating-linear-gradient(0deg, #1b6ca8, #1b6ca8 12px, #3296e6 12px, #3296e6 24px);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+      z-index: 5;
+    }
+
+    .pixel-river-shimmer {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 255, 255, 0.15) 10px,
+        rgba(255, 255, 255, 0.15) 20px
+      );
+      animation: riverFlow 3s infinite linear;
+    }
+
+    @keyframes riverFlow {
+      0% { background-position: 0 0; }
+      100% { background-position: 0 40px; }
+    }
+
+    /* WOODEN BRIDGE ACROSS RIVER (ДЕРЕВЯННЫЙ МОСТИК) */
+    .pixel-bridge {
+      position: absolute;
+      top: 45%;
+      left: 30%;
+      width: 90px;
+      height: 48px;
+      background: #7a4f27;
+      border: 3px solid #3d240f;
+      border-radius: 4px;
+      z-index: 6;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+      background-image: repeating-linear-gradient(
+        0deg,
+        #7a4f27,
+        #7a4f27 6px,
+        #57361a 6px,
+        #57361a 8px
+      );
+    }
+
+    .bridge-rails {
+      position: absolute;
+      top: -4px;
+      bottom: -4px;
+      left: 0;
+      right: 0;
+      border-top: 3px solid #3d240f;
+      border-bottom: 3px solid #3d240f;
+      pointer-events: none;
+    }
+
+    /* PIXEL TREES & BUSHES (ПИКСЕЛЬНЫЕ ДЕРЕВЬЯ) */
+    .pixel-tree {
+      position: absolute;
+      width: 48px;
+      height: 64px;
+      z-index: 15;
+      pointer-events: none;
+      filter: drop-shadow(0 6px 6px rgba(0,0,0,0.4));
+    }
+
+    .pixel-tree svg {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    /* --------------------------------------------------------------------------
+       2. TOP NAVIGATION & UI BAR
+       -------------------------------------------------------------------------- */
+    .ui-header {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .ui-card {
+      background: rgba(16, 18, 24, 0.9);
+      border: 2px solid #5a6578;
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      pointer-events: auto;
+      font-family: 'VT323', monospace;
+    }
+
+    .ui-title {
+      font-size: 20px;
+      color: #ffcc00;
+      letter-spacing: 1px;
+    }
+
+    .ui-score {
+      font-size: 18px;
+      color: #00ffcc;
+    }
+
+    .btn-nav {
+      background: #3a4454;
+      border: 2px solid #ffffff;
+      color: #ffffff;
+      padding: 6px 12px;
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-nav:active {
+      transform: translate(1px, 1px);
+      box-shadow: none;
+    }
+
+    /* --------------------------------------------------------------------------
+       3. CENTER PIXEL RESUME SHOP (МАГАЗИН РЕЗЮМЕ)
+       -------------------------------------------------------------------------- */
+    .pixel-shop {
+      position: absolute;
+      top: 48%;
+      left: 60%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 120px;
+      z-index: 30;
+      cursor: pointer;
+    }
+
+    .shop-sign-floating {
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000000;
+      color: #ffcc00;
+      border: 2px solid #ffcc00;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      animation: signBounce 1.5s infinite alternate ease-in-out;
+      z-index: 35;
+    }
+
+    @keyframes signBounce {
+      0% { transform: translateX(-50%) translateY(0); }
+      100% { transform: translateX(-50%) translateY(-5px); }
+    }
+
+    .shop-svg {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.6));
+    }
+
+    .shop-door-pulse {
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 38px;
+      border: 2px solid #00ffcc;
+      animation: doorPulse 1s infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes doorPulse {
+      0% { opacity: 0.3; }
+      100% { opacity: 0.9; }
+    }
+
+    /* --------------------------------------------------------------------------
+       4. SCATTERED PIXEL ICONS (СОКРАЩЕННЫЙ СПИСОК + КОТИК 🐱)
+       -------------------------------------------------------------------------- */
+    .world-icon-item {
+      position: absolute;
+      width: 46px;
+      height: 46px;
+      margin-left: -23px;
+      margin-top: -23px;
+      z-index: 25;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .world-icon-item:hover {
+      transform: scale(1.18);
+    }
+
+    .world-icon-item svg {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    }
+
+    .icon-tooltip {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'VT323', monospace;
+      font-size: 13px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    /* --------------------------------------------------------------------------
+       5. PIXEL CHARACTER SPRITE
+       -------------------------------------------------------------------------- */
+    .pixel-character {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      margin-left: -24px;
+      margin-top: -44px; /* Pivot at feet */
+      z-index: 50;
+      pointer-events: none;
+      will-change: left, top;
+    }
+
+    .character-body {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      transform-origin: bottom center;
+    }
+
+    .pixel-character.walking .character-body {
+      animation: walkBounce 0.25s infinite alternate ease-in-out;
+    }
+
+    @keyframes walkBounce {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(-4px) rotate(2deg); }
+    }
+
+    .pixel-character.face-left .character-body {
+      transform: scaleX(-1);
+    }
+    .pixel-character.walking.face-left .character-body {
+      animation: walkBounceLeft 0.25s infinite alternate ease-in-out;
+    }
+
+    @keyframes walkBounceLeft {
+      0% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+      100% { transform: scaleX(-1) translateY(-4px) rotate(2deg); }
+    }
+
+    .character-shadow {
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 50%;
+      z-index: -1;
+    }
+
+    /* Tap Marker */
+    .tap-marker {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      margin-left: -12px;
+      margin-top: -12px;
+      border: 2px solid #ffcc00;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: ripple 0.6s ease-out forwards;
+      z-index: 10;
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(0.3); opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* Collectible Coins */
+    .collectible-item {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      margin-left: -12px;
+      margin-top: -12px;
+      z-index: 20;
+      animation: itemFloat 1.2s infinite alternate ease-in-out;
+    }
+
+    @keyframes itemFloat {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
+    /* Bottom Character Picker Drawer */
+    .character-picker {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(16, 18, 24, 0.95);
+      border: 2px solid #00ffcc;
+      border-radius: 12px;
+      padding: 6px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 100;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+      font-family: 'VT323', monospace;
+    }
+
+    .picker-title {
+      font-size: 16px;
+      color: #aaa;
+      margin-right: 4px;
+    }
+
+    .char-option {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #444;
+      border-radius: 8px;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .char-option.active {
+      border-color: #ffcc00;
+      background: #3d3412;
+      transform: scale(1.1);
+    }
+
+    .char-option svg {
+      width: 28px;
+      height: 28px;
+      image-rendering: pixelated;
+    }
+
+    /* --------------------------------------------------------------------------
+       6. MODAL RESUME WINDOW & ITEM DIALOGS
+       -------------------------------------------------------------------------- */
+    .shop-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      opacity: 1;
+      transition: opacity 0.2s;
+    }
+
+    .shop-modal-overlay.hidden {
+      display: none;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mac-retro-modal {
+      background: #ffffff;
+      color: #000000;
+      border: 3px solid #000000;
+      box-shadow: 6px 6px 0 #000000, 0 10px 30px rgba(0,0,0,0.8);
+      width: 100%;
+      max-width: 540px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popModal 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popModal {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-titlebar {
+      background: #000000;
+      color: #ffffff;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+    }
+
+    .modal-close-btn {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #ffffff;
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      font-weight: bold;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .modal-close-btn:active {
+      background: #ff3333;
+      color: #fff;
+    }
+
+    .modal-scroll-content {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      font-size: 14.5px;
+      line-height: 1.45;
+    }
+
+    .regalia-badge-header {
+      background: #f0f0f0;
+      border: 2px solid #000;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .regalia-name {
+      font-family: 'VT323', monospace;
+      font-size: 26px;
+      font-weight: bold;
+      color: #000;
+      margin-bottom: 2px;
+    }
+
+    .regalia-tagline {
+      font-size: 14px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .regalia-section-title {
+      font-family: 'VT323', monospace;
+      font-size: 20px;
+      font-weight: bold;
+      background: #000000;
+      color: #ffffff;
+      padding: 4px 8px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .regalia-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .regalia-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 8px;
+      border: 1px solid #000;
+      background: #fdfdfd;
+    }
+
+    .regalia-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .regalia-text strong {
+      color: #000;
+      font-size: 15px;
+    }
+
+    .skills-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .skill-pill {
+      background: #000;
+      color: #fff;
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      padding: 2px 8px;
+    }
+
+    .modal-cta-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn-modal-action {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+      padding: 8px 14px;
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 #000;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: center;
+    }
+    .btn-modal-action:active {
+      transform: translate(2px, 2px);
+      box-shadow: none;
+    }
+    .btn-modal-action.primary {
+      background: #000;
+      color: #fff;
+    }
+
+    /* Toast Message */
+    .item-dialog-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #00ffcc;
+      border: 2px solid #00ffcc;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: 'VT323', monospace;
+      z-index: 800;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.8);
+      max-width: 90%;
+      text-align: center;
+      animation: popToast 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popToast {
+      0% { transform: translateX(-50%) scale(0.7); opacity: 0; }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+
+    /* Mobile hint */
+    .hint-toast {
+      position: absolute;
+      top: 65px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffcc00;
+      border: 1px solid #ffcc00;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 90;
+      font-family: 'VT323', monospace;
+      animation: fadeHint 6s forwards;
+      white-space: nowrap;
+    }
+
+    @keyframes fadeHint {
+      0%, 85% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- GAME WORLD WITH GRASS, TREES & RIVER -->
+  <div id="world">
+    
+    <!-- PIXEL RIVER WITH SHIMMER -->
+    <div class="pixel-river">
+      <div class="pixel-river-shimmer"></div>
+    </div>
+
+    <!-- WOODEN BRIDGE ACROSS RIVER -->
+    <div class="pixel-bridge">
+      <div class="bridge-rails"></div>
+    </div>
+
+    <!-- PIXEL TREES SCATTERED AROUND FOREST CLEARING -->
+    <div class="pixel-tree" style="top: 12%; left: 8%;">
+      <svg viewBox="0 0 32 48">
+        <rect x="14" y="32" width="4" height="14" fill="#523820"/>
+        <polygon points="16,4 4,20 28,20" fill="#2d5a27"/>
+        <polygon points="16,12 2,28 30,28" fill="#3c7928"/>
+        <polygon points="16,20 0,36 32,36" fill="#4a8f33"/>
+      </svg>
+    </div>
+
+    <div class="pixel-tree" style="top: 15%; left: 88%;">
+      <svg viewBox="0 0 32 48">
+        <rect x="14" y="32" width="4" height="14" fill="#523820"/>
+        <polygon points="16,4 4,20 28,20" fill="#2d5a27"/>
+        <polygon points="16,12 2,28 30,28" fill="#3c7928"/>
+        <polygon points="16,20 0,36 32,36" fill="#4a8f33"/>
+      </svg>
+    </div>
+
+    <div class="pixel-tree" style="top: 72%; left: 6%;">
+      <svg viewBox="0 0 32 48">
+        <rect x="14" y="32" width="4" height="14" fill="#523820"/>
+        <polygon points="16,4 4,20 28,20" fill="#2d5a27"/>
+        <polygon points="16,12 2,28 30,28" fill="#3c7928"/>
+        <polygon points="16,20 0,36 32,36" fill="#4a8f33"/>
+      </svg>
+    </div>
+
+    <div class="pixel-tree" style="top: 78%; left: 84%;">
+      <svg viewBox="0 0 32 48">
+        <rect x="14" y="32" width="4" height="14" fill="#523820"/>
+        <polygon points="16,4 4,20 28,20" fill="#2d5a27"/>
+        <polygon points="16,12 2,28 30,28" fill="#3c7928"/>
+        <polygon points="16,20 0,36 32,36" fill="#4a8f33"/>
+      </svg>
+    </div>
+
+    <!-- TOP UI BAR -->
+    <div class="ui-header">
+      <div class="ui-card">
+        <span class="ui-title">🕹️ VITALIY'S PIXEL WORLD</span>
+        <span class="ui-score" id="coinCounter">🪙 0</span>
+      </div>
+      <a href="index.html" class="btn-nav">🖥️ Macintosh Mac OS</a>
+    </div>
+
+    <!-- HINT TOAST -->
+    <div class="hint-toast" id="hintToast">
+      Нажимайте на Речку, Котика 🐱 или Магазин 🏪 — человечек побежит туда!
+    </div>
+
+    <!-- CENTER PIXEL RESUME SHOP BUILDING -->
+    <div class="pixel-shop" id="resumeShop" title="Нажмите, чтобы открыть Резюме!">
+      <div class="shop-sign-floating">🏪 Магазин Резюме (Кликни!)</div>
+      <div class="shop-door-pulse"></div>
+      
+      <!-- SVG Pixel Art Shop Building -->
+      <svg class="shop-svg" viewBox="0 0 64 56">
+        <polygon points="4,16 60,16 56,4 8,4" fill="#e03a3e"/>
+        <rect x="8" y="16" width="8" height="6" fill="#ffffff"/>
+        <rect x="16" y="16" width="8" height="6" fill="#e03a3e"/>
+        <rect x="24" y="16" width="8" height="6" fill="#ffffff"/>
+        <rect x="32" y="16" width="8" height="6" fill="#e03a3e"/>
+        <rect x="40" y="16" width="8" height="6" fill="#ffffff"/>
+        <rect x="48" y="16" width="8" height="6" fill="#e03a3e"/>
+        <rect x="8" y="22" width="48" height="32" fill="#c27d38" stroke="#000" stroke-width="1.5"/>
+        <rect x="13" y="28" width="14" height="14" fill="#00e5ff" stroke="#000" stroke-width="1"/>
+        <line x1="20" y1="28" x2="20" y2="42" stroke="#000" stroke-width="1"/>
+        <line x1="13" y1="35" x2="27" y2="35" stroke="#000" stroke-width="1"/>
+        <rect x="34" y="28" width="16" height="26" fill="#523820" stroke="#000" stroke-width="1"/>
+        <rect x="36" y="30" width="12" height="10" fill="#ffcc00"/>
+        <circle cx="37" cy="42" r="1.5" fill="#ffcc00"/>
+        <rect x="16" y="6" width="32" height="8" fill="#111111" stroke="#ffcc00" stroke-width="1"/>
+        <text x="32" y="12" font-size="6" font-family="VT323, monospace" fill="#ffcc00" text-anchor="middle" font-weight="bold">RESUME</text>
+      </svg>
+    </div>
+
+    <!-- ----------------------------------------------------------------------
+         CURATED SCATTERED ICONS (КОТИК 🐱 + 3 КЛЮЧЕВЫХ ПРЕДМЕТА)
+         ---------------------------------------------------------------------- -->
+
+    <!-- 1. ORANGE PIXEL CAT 🐱 (НЕ ТРОГАЕМ!) -->
+    <div class="world-icon-item" id="iconCat" style="top: 75%; left: 78%;">
+      <div class="icon-tooltip">Pixel Cat 🐱 (Мяу!)</div>
+      <svg viewBox="0 0 32 32">
+        <polygon points="6,6 12,12 6,12" fill="#f58220"/>
+        <polygon points="26,6 20,12 26,12" fill="#f58220"/>
+        <rect x="8" y="10" width="16" height="12" fill="#f58220"/>
+        <rect x="10" y="13" width="3" height="4" fill="#000"/>
+        <rect x="19" y="13" width="3" height="4" fill="#000"/>
+        <rect x="11" y="13" width="1" height="1" fill="#fff"/>
+        <rect x="20" y="13" width="1" height="1" fill="#fff"/>
+        <rect x="13" y="18" width="6" height="4" fill="#fff"/>
+        <rect x="15" y="18" width="2" height="1" fill="#ff77aa"/>
+        <rect x="9" y="22" width="14" height="8" fill="#f58220"/>
+        <path d="M23 24 Q 28 20 27 15" stroke="#f58220" stroke-width="3" fill="none"/>
+      </svg>
+    </div>
+
+    <!-- 2. Blue Projects Folder (Left Side Across River) -->
+    <div class="world-icon-item" id="iconFolder" style="top: 48%; left: 16%;">
+      <div class="icon-tooltip">Projects.folder 📁</div>
+      <svg viewBox="0 0 32 32">
+        <path d="M4 8 L12 8 L15 11 L28 11 L28 26 L4 26 Z" fill="#009ded" stroke="#000" stroke-width="2"/>
+        <rect x="7" y="13" width="18" height="10" fill="#ffffff" opacity="0.8"/>
+      </svg>
+    </div>
+
+    <!-- 3. Retro Gameboy (Top Right) -->
+    <div class="world-icon-item" id="iconGameboy" style="top: 25%; left: 75%;">
+      <div class="icon-tooltip">Achievements 📱</div>
+      <svg viewBox="0 0 32 32">
+        <rect x="8" y="4" width="16" height="24" rx="2" fill="#e0e0e0" stroke="#000" stroke-width="2"/>
+        <rect x="11" y="7" width="10" height="8" fill="#61bb46" stroke="#000" stroke-width="1"/>
+        <line x1="14" y1="19" x2="14" y2="23" stroke="#000" stroke-width="2"/>
+        <line x1="12" y1="21" x2="16" y2="21" stroke="#000" stroke-width="2"/>
+        <circle cx="19" cy="22" r="1.5" fill="#e03a3e"/>
+        <circle cx="21" cy="20" r="1.5" fill="#e03a3e"/>
+      </svg>
+    </div>
+
+    <!-- 4. Macintosh PC (Bottom Left) -->
+    <div class="world-icon-item" id="iconMacPC" style="top: 75%; left: 22%;">
+      <div class="icon-tooltip">Mac PC 🖥️</div>
+      <svg viewBox="0 0 32 32">
+        <rect x="7" y="5" width="18" height="14" fill="#ded6c2" stroke="#000" stroke-width="1.5"/>
+        <rect x="10" y="7" width="12" height="10" fill="#00e5ff"/>
+        <rect x="5" y="20" width="22" height="7" fill="#c4bcab" stroke="#000" stroke-width="1.5"/>
+        <rect x="8" y="23" width="6" height="2" fill="#222"/>
+      </svg>
+    </div>
+
+    <!-- PIXEL CHARACTER SPRITE -->
+    <div class="pixel-character" id="player">
+      <div class="character-shadow"></div>
+      <div class="character-body" id="playerSprite">
+        <!-- SVG Pixel Character 1 (Red Hat Hero) -->
+        <svg viewBox="0 0 16 16" width="100%" height="100%">
+          <rect x="4" y="0" width="8" height="2" fill="#e03a3e"/>
+          <rect x="2" y="2" width="12" height="2" fill="#e03a3e"/>
+          <rect x="5" y="1" width="6" height="1" fill="#f8a100"/>
+          <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+          <rect x="4" y="5" width="8" height="2" fill="#111111"/>
+          <rect x="5" y="5" width="2" height="1" fill="#555555"/>
+          <rect x="9" y="5" width="2" height="1" fill="#555555"/>
+          <rect x="4" y="8" width="8" height="5" fill="#009ded"/>
+          <rect x="7" y="8" width="2" height="5" fill="#ffffff"/>
+          <rect x="4" y="13" width="3" height="3" fill="#222222"/>
+          <rect x="9" y="13" width="3" height="3" fill="#222222"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- CHARACTER PICKER DRAWER -->
+    <div class="character-picker">
+      <span class="picker-title">Герой:</span>
+      
+      <div class="char-option active" data-char="0" title="Красная шляпа">
+        <svg viewBox="0 0 16 16">
+          <rect x="2" y="2" width="12" height="2" fill="#e03a3e"/>
+          <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+          <rect x="4" y="5" width="8" height="2" fill="#111"/>
+          <rect x="4" y="8" width="8" height="5" fill="#009ded"/>
+        </svg>
+      </div>
+
+      <div class="char-option" data-char="1" title="Агент в зеленом">
+        <svg viewBox="0 0 16 16">
+          <rect x="4" y="2" width="8" height="2" fill="#ffcc00"/>
+          <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+          <rect x="4" y="5" width="8" height="2" fill="#111"/>
+          <rect x="4" y="8" width="8" height="5" fill="#61bb46"/>
+        </svg>
+      </div>
+
+      <div class="char-option" data-char="2" title="Маг">
+        <svg viewBox="0 0 16 16">
+          <polygon points="8,0 3,5 13,5" fill="#963d97"/>
+          <rect x="4" y="5" width="8" height="4" fill="#ffd19a"/>
+          <rect x="4" y="6" width="3" height="2" fill="#000"/>
+          <rect x="9" y="6" width="3" height="2" fill="#000"/>
+          <rect x="3" y="9" width="10" height="5" fill="#963d97"/>
+        </svg>
+      </div>
+
+      <div class="char-option" data-char="3" title="Киберпанк">
+        <svg viewBox="0 0 16 16">
+          <rect x="4" y="2" width="8" height="2" fill="#ff007f"/>
+          <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+          <rect x="4" y="5" width="8" height="2" fill="#00e5ff"/>
+          <rect x="4" y="8" width="8" height="5" fill="#111122"/>
+        </svg>
+      </div>
+    </div>
+
+  </div><!-- /#world -->
+
+  <!-- MODAL RESUME POPUP WITH REGALIA & ACHIEVEMENTS -->
+  <div class="shop-modal-overlay hidden" id="modalShopOverlay">
+    <div class="mac-retro-modal">
+      
+      <div class="modal-titlebar">
+        <span>🏪 МАГАЗИН РЕЗЮМЕ — VITALIY PETROV</span>
+        <button class="modal-close-btn" id="btnCloseModal">✕</button>
+      </div>
+
+      <div class="modal-scroll-content">
+        <div class="regalia-badge-header">
+          <div class="regalia-name">VITALIY PETROV</div>
+          <div class="regalia-tagline">Product Builder & Growth Manager</div>
+          <p style="margin-top:6px; font-size:13.5px; color:#444;">
+            Запуск и масштабирование digital-продуктов. Фокус на быстрый рост пользователей и платящей аудитории.
+          </p>
+        </div>
+
+        <div>
+          <div class="regalia-section-title">🏆 КЛЮЧЕВЫЕ РЕГАЛИИ И РЕЗУЛЬТАТЫ</div>
+          <div class="regalia-list">
+            <div class="regalia-item">
+              <span class="regalia-icon">🚀</span>
+              <div class="regalia-text">
+                <strong>60 000+ пользователей за 6 месяцев</strong><br>
+                Успешный запуск SMM-инструмента с общей аудиторией свыше 100 000 человек.
+              </div>
+            </div>
+            <div class="regalia-item">
+              <span class="regalia-icon">📈</span>
+              <div class="regalia-text">
+                <strong>2 000 пользователей за полгода</strong><br>
+                Биржа фриланса: 100+ уникальных посетителей в день и стабильно около 70 заказов ежедневно.
+              </div>
+            </div>
+            <div class="regalia-item">
+              <span class="regalia-icon">⚡</span>
+              <div class="regalia-text">
+                <strong>50 платных подписок за 2 недели</strong><br>
+                Фитнес-трекер: 100 регистраций всего за 3 дня по методу Lean Startup.
+              </div>
+            </div>
+            <div class="regalia-item">
+              <span class="regalia-icon">👟</span>
+              <div class="regalia-text">
+                <strong>50 продаж кроссовок зимой с нуля</strong><br>
+                Запуск агрегатора без бюджета исключительно через связки SEO и SMM.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="regalia-section-title">💡 НАВЫКИ И ЭКСПЕРТИЗА</div>
+          <div class="skills-pills">
+            <span class="skill-pill">Product Management</span>
+            <span class="skill-pill">Growth Hacking</span>
+            <span class="skill-pill">SMM & SEO</span>
+            <span class="skill-pill">Unit-Economics</span>
+            <span class="skill-pill">Lean Startup</span>
+            <span class="skill-pill">Инфлюэнсер-маркетинг</span>
+            <span class="skill-pill">Аналитика каналов</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="regalia-section-title">📁 ДОПОЛНИТЕЛЬНЫЕ ПРОЕКТЫ</div>
+          <div class="regalia-list">
+            <div class="regalia-item">
+              <span class="regalia-icon">⚙️</span>
+              <div class="regalia-text">
+                <strong>Работа с автоматикой:</strong> Оптимизация процессов, интеграция автосервисов.
+              </div>
+            </div>
+            <div class="regalia-item">
+              <span class="regalia-icon">🚗</span>
+              <div class="regalia-text">
+                <strong>Работа с автотюнингом:</strong> SEO-продвижение в сложной нише, 50 продаж в месяц.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-cta-row">
+          <a href="https://t.me/vitaliy_petrov" target="_blank" class="btn-modal-action primary">
+            💬 Связаться в Telegram
+          </a>
+          <button type="button" class="btn-modal-action" id="btnContinueWalk">
+            🏃 Продолжить прогулку
+          </button>
+        </div>
+
+      </div><!-- /.modal-scroll-content -->
+
+    </div><!-- /.mac-retro-modal -->
+  </div><!-- /.shop-modal-overlay -->
+
+  <script>
+    /* ==========================================================================
+       PIXEL WALKER & WORLD ICONS ENGINE
+       ========================================================================== */
+
+    const world = document.getElementById('world');
+    const player = document.getElementById('player');
+    const playerSprite = document.getElementById('playerSprite');
+    const resumeShop = document.getElementById('resumeShop');
+    const modalShopOverlay = document.getElementById('modalShopOverlay');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+    const btnContinueWalk = document.getElementById('btnContinueWalk');
+    const coinCounter = document.getElementById('coinCounter');
+    const charOptions = document.querySelectorAll('.char-option');
+
+    // Player State
+    let posX = window.innerWidth / 2;
+    let posY = window.innerHeight * 0.75;
+    let targetX = posX;
+    let targetY = posY;
+    let speed = 4.5;
+    let isMoving = false;
+    let activeCallback = null;
+    let score = 0;
+
+    updatePlayerPos(posX, posY);
+
+    // Audio Engine
+    let audioCtx = null;
+    function playBeep(freq = 500, type = 'sine', duration = 0.08) {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playFanfare() {
+      const freqs = [392, 523, 659, 784];
+      freqs.forEach((f, i) => {
+        setTimeout(() => playBeep(f, 'square', 0.12), i * 80);
+      });
+    }
+
+    function playMeowSound() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.35);
+    }
+
+    function updatePlayerPos(x, y) {
+      player.style.left = `${x}px`;
+      player.style.top = `${y}px`;
+    }
+
+    function showToast(msg) {
+      const existing = document.querySelector('.item-dialog-toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'item-dialog-toast';
+      toast.innerHTML = msg;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3500);
+    }
+
+    // Tap on Shop Building
+    resumeShop.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      const rect = resumeShop.getBoundingClientRect();
+      targetX = rect.left + rect.width / 2;
+      targetY = rect.bottom - 10;
+      activeCallback = () => {
+        playFanfare();
+        modalShopOverlay.classList.remove('hidden');
+      };
+
+      createTapMarker(targetX, targetY);
+      playBeep(700, 'triangle', 0.06);
+
+      if (!isMoving) {
+        isMoving = true;
+        player.classList.add('walking');
+        requestAnimationFrame(gameLoop);
+      }
+    });
+
+    // Events for Curated Objects
+    const worldIconEvents = {
+      iconCat: {
+        msg: "🐱 Рыжий Котик Макинтош: 'Мяу! Мууур... Ты нашёл главного хранителя резюме!' 🐾 (+10 очков)",
+        sound: () => playMeowSound(),
+        bonus: 10
+      },
+      iconFolder: {
+        msg: "📁 Папка Проектов: 'Фриланс биржа: 2000 пользователей, 70 заказов в день!'",
+        sound: () => playBeep(500, 'sine', 0.1),
+        bonus: 5
+      },
+      iconGameboy: {
+        msg: "📱 GameBoy: 'SMM-инструмент: 60 000+ пользователей за 6 месяцев!'",
+        sound: () => playFanfare(),
+        bonus: 5
+      },
+      iconMacPC: {
+        msg: "🖥️ Macintosh PC: 'System 7 Ready! Зайдите в Магазин для чтения резюме!'",
+        sound: () => playBeep(800, 'square', 0.15),
+        bonus: 5
+      }
+    };
+
+    Object.keys(worldIconEvents).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        const rect = el.getBoundingClientRect();
+        targetX = rect.left + rect.width / 2;
+        targetY = rect.bottom;
+        
+        activeCallback = () => {
+          const item = worldIconEvents[id];
+          if (item) {
+            item.sound();
+            showToast(item.msg);
+            score += item.bonus;
+            coinCounter.textContent = `🪙 ${score}`;
+          }
+        };
+
+        createTapMarker(targetX, targetY);
+        playBeep(650, 'sine', 0.05);
+
+        if (!isMoving) {
+          isMoving = true;
+          player.classList.add('walking');
+          requestAnimationFrame(gameLoop);
+        }
+      });
+    });
+
+    /* Tap Ground */
+    world.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.ui-header') || e.target.closest('.character-picker') || e.target.closest('.shop-modal-overlay') || e.target.closest('.pixel-shop') || e.target.closest('.world-icon-item')) {
+        return;
+      }
+
+      targetX = e.clientX;
+      targetY = e.clientY;
+      activeCallback = null;
+
+      createTapMarker(targetX, targetY);
+      playBeep(600, 'sine', 0.04);
+
+      if (!isMoving) {
+        isMoving = true;
+        player.classList.add('walking');
+        requestAnimationFrame(gameLoop);
+      }
+    });
+
+    function createTapMarker(x, y) {
+      const marker = document.createElement('div');
+      marker.className = 'tap-marker';
+      marker.style.left = `${x}px`;
+      marker.style.top = `${y}px`;
+      world.appendChild(marker);
+
+      setTimeout(() => {
+        marker.remove();
+      }, 600);
+    }
+
+    /* Game Loop */
+    function gameLoop() {
+      if (!isMoving) return;
+
+      const dx = targetX - posX;
+      const dy = targetY - posY;
+      const distance = Math.hypot(dx, dy);
+
+      if (distance < speed) {
+        posX = targetX;
+        posY = targetY;
+        updatePlayerPos(posX, posY);
+        isMoving = false;
+        player.classList.remove('walking');
+
+        if (activeCallback) {
+          const cb = activeCallback;
+          activeCallback = null;
+          cb();
+        }
+
+        checkCollisions();
+        return;
+      }
+
+      if (dx < -2) {
+        player.classList.add('face-left');
+      } else if (dx > 2) {
+        player.classList.remove('face-left');
+      }
+
+      const vx = (dx / distance) * speed;
+      const vy = (dy / distance) * speed;
+
+      posX += vx;
+      posY += vy;
+      updatePlayerPos(posX, posY);
+
+      checkCollisions();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function closeResumeModal() {
+      playBeep(400, 'sine', 0.05);
+      modalShopOverlay.classList.add('hidden');
+    }
+
+    btnCloseModal.addEventListener('click', closeResumeModal);
+    btnContinueWalk.addEventListener('click', closeResumeModal);
+
+    /* Collectible Coins Generator */
+    const collectibles = [];
+    function spawnCollectible() {
+      if (collectibles.length >= 5) return;
+
+      const item = document.createElement('div');
+      item.className = 'collectible-item';
+      
+      const x = Math.random() * (window.innerWidth - 60) + 30;
+      const y = Math.random() * (window.innerHeight - 160) + 80;
+
+      item.style.left = `${x}px`;
+      item.style.top = `${y}px`;
+
+      item.innerHTML = `
+        <svg viewBox="0 0 16 16" width="24" height="24">
+          <circle cx="8" cy="8" r="7" fill="#ffcc00" stroke="#000" stroke-width="1.5"/>
+          <circle cx="8" cy="8" r="4" fill="#ffe680"/>
+          <text x="8" y="11" font-size="8" text-anchor="middle" font-weight="bold" fill="#996600">$</text>
+        </svg>
+      `;
+
+      world.appendChild(item);
+      collectibles.push({ element: item, x: x, y: y });
+    }
+
+    for (let i = 0; i < 4; i++) {
+      spawnCollectible();
+    }
+    setInterval(spawnCollectible, 4000);
+
+    function checkCollisions() {
+      for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        const dist = Math.hypot(posX - c.x, posY - c.y);
+        if (dist < 32) {
+          c.element.remove();
+          collectibles.splice(i, 1);
+          score += 1;
+          coinCounter.textContent = `🪙 ${score}`;
+          playBeep(950, 'square', 0.1);
+        }
+      }
+    }
+
+    /* Character Selection Sprites */
+    const charSprites = [
+      `<svg viewBox="0 0 16 16" width="100%" height="100%">
+        <rect x="4" y="0" width="8" height="2" fill="#e03a3e"/>
+        <rect x="2" y="2" width="12" height="2" fill="#e03a3e"/>
+        <rect x="5" y="1" width="6" height="1" fill="#f8a100"/>
+        <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+        <rect x="4" y="5" width="8" height="2" fill="#111111"/>
+        <rect x="5" y="5" width="2" height="1" fill="#555555"/>
+        <rect x="9" y="5" width="2" height="1" fill="#555555"/>
+        <rect x="4" y="8" width="8" height="5" fill="#009ded"/>
+        <rect x="7" y="8" width="2" height="5" fill="#ffffff"/>
+        <rect x="4" y="13" width="3" height="3" fill="#222222"/>
+        <rect x="9" y="13" width="3" height="3" fill="#222222"/>
+      </svg>`,
+
+      `<svg viewBox="0 0 16 16" width="100%" height="100%">
+        <rect x="4" y="1" width="8" height="2" fill="#ffcc00"/>
+        <rect x="4" y="3" width="8" height="1" fill="#e03a3e"/>
+        <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+        <rect x="4" y="5" width="8" height="2" fill="#111111"/>
+        <rect x="4" y="8" width="8" height="5" fill="#61bb46"/>
+        <rect x="7" y="8" width="2" height="5" fill="#ffffff"/>
+        <rect x="4" y="13" width="3" height="3" fill="#222222"/>
+        <rect x="9" y="13" width="3" height="3" fill="#222222"/>
+      </svg>`,
+
+      `<svg viewBox="0 0 16 16" width="100%" height="100%">
+        <polygon points="8,0 2,5 14,5" fill="#963d97"/>
+        <rect x="4" y="5" width="8" height="4" fill="#ffd19a"/>
+        <rect x="4" y="6" width="3" height="2" fill="#111"/>
+        <rect x="9" y="6" width="3" height="2" fill="#111"/>
+        <rect x="3" y="9" width="10" height="5" fill="#963d97"/>
+        <rect x="4" y="14" width="3" height="2" fill="#222"/>
+        <rect x="9" y="14" width="3" height="2" fill="#222"/>
+      </svg>`,
+
+      `<svg viewBox="0 0 16 16" width="100%" height="100%">
+        <rect x="3" y="2" width="10" height="2" fill="#ff007f"/>
+        <rect x="4" y="4" width="8" height="4" fill="#ffd19a"/>
+        <rect x="3" y="5" width="10" height="2" fill="#00e5ff"/>
+        <rect x="4" y="8" width="8" height="5" fill="#111122"/>
+        <rect x="4" y="13" width="3" height="3" fill="#ff007f"/>
+        <rect x="9" y="13" width="3" height="3" fill="#ff007f"/>
+      </svg>`
+    ];
+
+    charOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        charOptions.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+
+        const index = parseInt(opt.getAttribute('data-char')) || 0;
+        playerSprite.innerHTML = charSprites[index];
+        playBeep(800, 'sine', 0.08);
+      });
+    });
+
+  </script>
+</body>
+</html>
