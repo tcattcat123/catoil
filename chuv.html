@@ -4122,7 +4122,7 @@
     const map = gameMap;
 
     // Explicit village layout in world coords (fountain plaza at 695,845)
-    if (resumeShop) { resumeShop.style.left = '320px'; resumeShop.style.top = '430px'; }
+    if (resumeShop) { resumeShop.style.left = '790px'; resumeShop.style.top = '1120px'; }
     const palmEl = document.querySelector('.snowy-palm-tree');
     if (palmEl) { palmEl.style.left = '1230px'; palmEl.style.top = '990px'; }
     if (negotiationTable) { negotiationTable.style.left = '1080px'; negotiationTable.style.top = '1120px'; }
@@ -7312,43 +7312,48 @@
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
     })();
-    /* Asphalt platforms from s/asf.png, placed as designed (no old bands).
+    /* Oil derrick below the fountain (s/neft1.png, 4-frame strip, transparent) */
+    (function atlasNeft() {
+      const FW = 128, FH = 512, FRAMES = 4;
+      const DW = 64, DH = 256;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const el = document.createElement('div');
+          el.className = 'map-decor neft-derrick';
+          el.style.left = `${520 - DW / 2}px`;
+          el.style.top = `${1120 - DH + 20}px`;
+          el.style.width = `${DW}px`;
+          el.style.height = `${DH}px`;
+          el.style.zIndex = '6';
+          el.style.backgroundImage = 'url("s/neft1.png")';
+          el.style.backgroundRepeat = 'no-repeat';
+          el.style.backgroundSize = `${DW * FRAMES}px ${DH}px`;
+          el.style.imageRendering = 'pixelated';
+          map.appendChild(el);
+          let f = 0;
+          setInterval(() => {
+            f = (f + 1) % FRAMES;
+            el.style.backgroundPosition = `${-f * DW}px 0`;
+          }, 300);
+        } catch (e) {}
+      };
+      img.onerror = () => {};
+      img.src = 's/neft1.png';
+    })();
+    /* Asphalt: whole s/asf.png tiled small as a repeating pattern in road bands.
        Old grey stone-tex removed from the map. */
     function layAsphalt() {
       gameMap.querySelectorAll('.asf-piece').forEach(el => el.remove());
       const img = new Image();
       img.onload = () => {
         try {
-          const cut = (x, y, w, h) => {
-            const c = document.createElement('canvas');
-            c.width = w;
-            c.height = h;
-            c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
-            return c.toDataURL('image/png');
-          };
-          const add = (url, cx, cy, w, h) => {
-            const el = document.createElement('div');
-            el.className = 'map-decor asf-piece';
-            el.style.left = `${Math.round(cx - w / 2)}px`;
-            el.style.top = `${Math.round(cy - h / 2)}px`;
-            el.style.width = `${w}px`;
-            el.style.height = `${h}px`;
-            el.style.zIndex = '2';
-            el.style.backgroundImage = `url("${url}")`;
-            el.style.backgroundSize = `${w}px ${h}px`;
-            map.appendChild(el);
-          };
-          // Round plaza under the fountain
-          add(cut(10, 560, 460, 350), 695, 845, 368, 280);
-          // Diamond pads under shop & table
-          const pad = cut(10, 15, 320, 215);
-          add(pad, 320, 445, 224, 150);
-          add(pad, 1080, 1135, 224, 150);
-          // Small slabs as decor in the field
-          const slab = cut(950, 880, 240, 200);
-          add(slab, 1900, 1100, 168, 140);
-          add(slab, 2500, 500, 168, 140);
-          add(slab, 2700, 1400, 168, 140);
+          gameMap.querySelectorAll('.road-h,.road-v').forEach(rd => {
+            rd.style.backgroundImage = 'url("s/asf.png")';
+            rd.style.backgroundRepeat = 'repeat';
+            rd.style.backgroundSize = '150px auto';
+            rd.style.imageRendering = 'pixelated';
+          });
         } catch (e) { /* keep grass on failure */ }
       };
       img.onerror = () => {};
@@ -7479,7 +7484,7 @@
     updateResUI();
 
     /* 🏪 MY STALL: placeable shop, sign text, stock, NPC buyers, remote trade */
-    let myShop = { x: 320, y: 430, sign: '🏪 Personal Shop', stock: [] };
+    let myShop = { x: 790, y: 1120, sign: '🏪 Personal Shop', stock: [] };
     try {
       const _ss = JSON.parse(localStorage.getItem('my_shop') || 'null');
       if (_ss && typeof _ss.x === 'number' && typeof _ss.y === 'number') {
