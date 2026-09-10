@@ -7229,19 +7229,52 @@
       });
     }
     // BASE RULE: animations live packed as strips in s/ (one texture = one draw call).
+    // Driven by s/spritesheet.json (TexturePacker manifest: frames + rects).
     // s/fo.png = 3-frame fountain strip; black background is keyed out at load.
     (function atlasFountain() {
       const host = document.querySelector('.plaza-center .fountain');
       if (!host) return;
-      const img = new Image();
-      img.onload = () => {
+      const loadImg = (src) => new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
+      });
+      Promise.all([
+        loadImg('s/fo.png'),
+        (typeof fetch !== 'undefined'
+          ? fetch('s/spritesheet.json', { cache: 'no-store' }).then(r => r.json()).catch(() => null)
+          : Promise.resolve(null))
+      ]).then(([img, meta]) => {
         try {
-          const fw = Math.floor(img.naturalWidth / 3), fh = img.naturalHeight;
+          // Frame rect from manifest (fo.png entry) or full strip fallback.
+          // TexturePacker export tips: Format = JSON hash, Padding = 0,
+          // Trim OFF (or keep spriteSourceSize), one row = one animation.
+          let fx = 0, fy = 0, fw = img.naturalWidth, fh = img.naturalHeight;
+          const entry = meta && meta.frames && (meta.frames['fo.png'] || meta.frames['fo']);
+          if (entry && entry.frame) {
+            fx = entry.frame.x | 0; fy = entry.frame.y | 0;
+            fw = entry.frame.w || fw; fh = entry.frame.h || fh;
+          }
+          // Named animations from the manifest win over the default 3-slice
+          let rects = null;
+          const anims = meta && meta.animations;
+          if (anims && anims.fountain && meta.frames) {
+            rects = anims.fountain
+              .map(n => meta.frames[n])
+              .filter(Boolean)
+              .map(f => ({ x: f.frame.x | 0, y: f.frame.y | 0, w: f.frame.w, h: f.frame.h }));
+          }
+          if (!rects || !rects.length) {
+            const sw0 = Math.floor(fw / 3);
+            rects = [0, 1, 2].map(i => ({ x: fx + i * sw0, y: fy, w: sw0, h: fh }));
+          }
+          const sw = rects[0].w, sh = rects[0].h;
           const c = document.createElement('canvas');
-          c.width = img.naturalWidth;
-          c.height = img.naturalHeight;
+          c.width = sw * rects.length;
+          c.height = sh;
           const x = c.getContext('2d', { willReadFrequently: true });
-          x.drawImage(img, 0, 0);
+          rects.forEach((r, i) => x.drawImage(img, r.x, r.y, r.w, r.h, i * sw, 0, sw, sh));
           const d = x.getImageData(0, 0, c.width, c.height);
           const p = d.data;
           for (let i = 0; i < p.length; i += 4) {
@@ -7253,17 +7286,15 @@
           const el = document.createElement('div');
           el.className = 'fountain-anim';
           el.style.backgroundImage = `url("${url}")`;
-          el.style.backgroundSize = `${fw * 3}px ${fh}px`;
+          el.style.backgroundSize = `${sw * rects.length}px ${sh}px`;
           host.appendChild(el);
           let f = 0;
           setInterval(() => {
-            f = (f + 1) % 3;
-            el.style.backgroundPosition = `${-f * fw}px 0`;
+            f = (f + 1) % rects.length;
+            el.style.backgroundPosition = `${-f * sw}px 0`;
           }, 350);
         } catch (e) { /* keep static SVG fallback */ }
-      };
-      img.onerror = () => { /* keep static SVG fallback */ };
-      img.src = 's/fo.png';
+      }).catch(() => { /* keep static SVG fallback */ });
     })();
     function applyMapData(M) {
       if (!M || typeof M !== 'object') return;
