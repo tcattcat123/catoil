@@ -5075,7 +5075,7 @@
           collectibles.splice(i, 1);
           score += 1;
           if (coinCounter) coinCounter.textContent = `🪙 ${score}`;
-          playBeep(950, 'square', 0.1);
+          playCoinSound();
         }
       }
 
@@ -6682,12 +6682,17 @@
         firstTaskParent.insertBefore(tasksSection, firstTaskParent.children[0]);
       }
       const shopNodes = [tasksSection, ...kids.filter(el => isShopNode(el) && el !== tasksSection)];
+      // Split shop pane: tasks / pumps / resources3769 + about
+      const stallSection = shopNodes.find(el => el.querySelector && el.querySelector('#stallInvRow')) || null;
+      const pumpsSection = shopNodes.find(el => el.querySelector && el.querySelector('#shopPumpsGrid')) || null;
       const ctaNode = kids.find(isCta);
       if (!shopNodes.length) return;
       sc.dataset.tabsDone = '1';
       const tabBar = document.createElement('div');
       tabBar.className = 'shop-tabs';
-      tabBar.innerHTML = `<button type="button" class="shop-tab-btn active" data-tab="shop">🏪 Shop</button>`
+      tabBar.innerHTML = `<button type="button" class="shop-tab-btn active" data-tab="tasks">📋 Tasks</button>`
+        + `<button type="button" class="shop-tab-btn" data-tab="pumps">🔧 Pumps</button>`
+        + `<button type="button" class="shop-tab-btn" data-tab="resource">🪵 Resources</button>`
         + `<button type="button" class="shop-tab-btn" data-tab="about">📌 About me</button>`;
       const aboutPane = document.createElement('div');
       aboutPane.id = 'aboutPane';
@@ -6703,13 +6708,19 @@
       shopNodes.forEach(el => sc.appendChild(el));
       if (ctaNode) aboutPane.appendChild(ctaNode);
       sc.appendChild(aboutPane);
-      const showShop = shopNodes.every(el => el.style.display !== 'none');
+      const panes = { tasks: [tasksSection], pumps: [], resource: [], about: [aboutPane] };
+      if (pumpsSection) panes.pumps.push(pumpsSection);
+      if (stallSection) panes.resource.push(stallSection);
       const applyTab = (tab) => {
         tabBar.querySelectorAll('.shop-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-        const show = tab === 'shop';
-        shopNodes.forEach(el => { el.style.display = show ? '' : 'none'; });
-        aboutPane.style.display = show ? 'none' : 'flex';
+        ['tasks', 'pumps', 'resource'].forEach(k => {
+          (panes[k] || []).forEach(el => { el.style.display = (k === tab) ? '' : 'none'; });
+        });
+        aboutPane.style.display = tab === 'about' ? 'flex' : 'none';
         sc.scrollTop = 0;
+        if (tab === 'tasks' && typeof renderTasks === 'function') renderTasks();
+        if (tab === 'pumps' && typeof renderShopPumps === 'function') renderShopPumps();
+        if (tab === 'resource' && typeof renderStall === 'function') renderStall();
       };
       tabBar.querySelectorAll('.shop-tab-btn').forEach(b => {
         b.addEventListener('click', (e) => {
@@ -6718,7 +6729,8 @@
           playBeep(600, 'sine', 0.06);
         });
       });
-      applyTab(showShop ? 'shop' : 'shop');
+      // Deferred: render* touch data declared later in the file
+      setTimeout(() => applyTab('tasks'), 0);
     })();
     function renderShopPumps() {
       const grid = document.getElementById('shopPumpsGrid');
@@ -7031,6 +7043,27 @@
     }
     // Swing + gush samples (freesound.org, CC0)
     let swingAudio = null, gushAudio = null;
+    // Coin pickup sample (freesound.org TheKnave, CC-BY 4.0) + synth fallback
+    let coinAudio = null;
+    try {
+      coinAudio = new Audio('sounds/coin.mp3');
+      coinAudio.preload = 'auto';
+      coinAudio.volume = 0.9;
+      coinAudio.addEventListener('error', () => { coinAudio = null; });
+    } catch (e) {
+      coinAudio = null;
+    }
+    function playCoinSound() {
+      if (coinAudio) {
+        try {
+          coinAudio.currentTime = 0;
+          const pr = coinAudio.play();
+          if (pr && pr.catch) pr.catch(() => playBeep(950, 'square', 0.1));
+          return;
+        } catch (e) { /* fall through */ }
+      }
+      playBeep(950, 'square', 0.1);
+    }
     try {
       swingAudio = new Audio('sounds/swing.mp3');
       swingAudio.preload = 'auto';
@@ -7189,9 +7222,12 @@
         (u) => `<a href="${u}" target="_blank" style="color:#38bdf8;">${u}</a>`);
     }
     function renderTasks() {
+      // Highest price first — expensive tasks on top
+      const byRewardDesc = (a, b) => (b.reward || 0) - (a.reward || 0);
       const mine = document.getElementById('myTasksList');
       if (mine) {
-        mine.innerHTML = myTasks.length ? myTasks.map(t =>
+        const sortedMine = [...myTasks].sort(byRewardDesc);
+        mine.innerHTML = sortedMine.length ? sortedMine.map(t =>
           `<div class="stall-row"><span>📋 ${escapeHtml(t.text)} — ${t.reward}🛢️ ${t.doneBy.length ? '(done ✓)' : ''}</span>`
           + `<button type="button" class="stall-mini-btn red" data-del-task="${t.id}">X</button></div>`
         ).join('') : '<div class="context-note">No tasks yet. Offer oil for follows & reposts!</div>';
@@ -7216,13 +7252,15 @@
           (r.tasks || []).forEach(t => {
             const done = (t.doneBy || []).includes(clientUuid);
             const nm = ((r.cname) || 'Cat').slice(0, 12);
-            rows.push(`<div class="stall-row"><span>📋 <b>${escapeHtml(nm)}</b>: ${linkifyTask(t.text)} — ${t.reward}🛢️</span>`
+            rows.push({ reward: t.reward || 0, html:
+              `<div class="stall-row"><span>📋 <b>${escapeHtml(nm)}</b>: ${linkifyTask(t.text)} — ${t.reward}🛢️</span>`
               + (done
                 ? `<button type="button" class="stall-mini-btn" disabled>Done ✓</button>`
-                : `<button type="button" class="stall-mini-btn" data-do-task="${t.id}" data-task-from="${sid}">Do it</button>`));
+                : `<button type="button" class="stall-mini-btn" data-do-task="${t.id}" data-task-from="${sid}">Do it</button>`) });
           });
         }
-        around.innerHTML = rows.length ? rows.join('') : '<div class="context-note">No tasks around yet.</div>';
+        rows.sort((a, b) => b.reward - a.reward);
+        around.innerHTML = rows.length ? rows.map(r => r.html).join('') : '<div class="context-note">No tasks around yet.</div>';
         around.querySelectorAll('[data-do-task]').forEach(btn => {
           btn.addEventListener('click', (ev) => {
             if (ev) ev.stopPropagation();
@@ -7644,6 +7682,11 @@
     const btnSaveSign = document.getElementById('btnSaveSign');
     if (btnSaveSign) btnSaveSign.addEventListener('click', (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
+      if (!((typeof isAdmin !== 'undefined') && isAdmin)) {
+        playBeep(200, 'sawtooth', 0.1);
+        showSpeechBubble('Admins only! 👑', 1800);
+        return;
+      }
       const si = document.getElementById('shopSignInput');
       myShop.sign = (si && si.value.trim().slice(0, 24)) || '🏪 Personal Shop';
       applyShopPos();
@@ -7663,6 +7706,12 @@
       updateResUI();
     }
     function renderStall() {
+      // Shop main text: admin only
+      const adminMode = (typeof isAdmin !== 'undefined') && isAdmin;
+      const si = document.getElementById('shopSignInput');
+      const sb = document.getElementById('btnSaveSign');
+      if (si) si.disabled = !adminMode;
+      if (sb) sb.disabled = !adminMode;
       const inv = document.getElementById('stallInvRow');
       if (inv) inv.textContent = `📦 You: 🪵 ${woodCount} · ⛓️ ${ironCount} · 🛢️ ${oilCount} · 🪙 ${score}`;
       const rows = document.getElementById('stallListRows');

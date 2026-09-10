@@ -39,6 +39,46 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 
+function json(res, status, obj) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(obj));
+}
+
+function readBody(req, cb) {
+  let raw = "";
+  req.on("data", (chunk) => {
+    raw += chunk;
+    if (raw.length > 65536) req.destroy();
+  });
+  req.on("end", () => {
+    try {
+      cb(JSON.parse(raw || "{}"));
+    } catch {
+      cb({});
+    }
+  });
+}
+
+// Task board: id -> {id,text,reward,maxClaims,claimsLeft,cid,cname,doneBy[],ts}
+const TASKS_FILE = path.join(ROOT, "server-node", "tasks.json");
+const tasks = new Map();
+try {
+  const raw = fs.readFileSync(TASKS_FILE, "utf8");
+  for (const t of JSON.parse(raw)) {
+    if (t && t.id) tasks.set(t.id, t);
+  }
+  console.log(`[TASKS] loaded ${tasks.size} tasks`);
+} catch {
+  /* first run */
+}
+function saveTasks() {
+  try {
+    fs.writeFileSync(TASKS_FILE, JSON.stringify([...tasks.values()]));
+  } catch (err) {
+    console.log("[TASKS] save failed:", err.message);
+  }
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/") {
@@ -54,7 +94,54 @@ function serveStatic(req, res) {
   }
   if (url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ ok: true, online: clients.size, known: registry.size }));
+    res.end(JSON.stringify({ ok: true, online: clients.size, known: registry.size, tasks: tasks.size }));
+    return;
+  }
+  if (url.pathname === "/tasks" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify([...tasks.values()]));
+    return;
+  }
+  if (url.pathname === "/tasks" && req.method === "POST") {
+    readBody(req, (body) => {
+      const text = String(body.text || "").slice(0, 80).trim();
+      const reward = Math.min(Math.max(parseInt(body.reward, 10) || 0, 1), 999);
+      const maxClaims = Math.min(Math.max(parseInt(body.maxClaims, 10) || 0, 1), 20);
+      const cid = String(body.cid || "").slice(0, 40);
+      const cname = String(body.cname || "").slice(0, 12);
+      if (!text || !cid) return json(res, 400, { error: "bad task" });
+      const task = {
+        id: Date.now() + "-" + Math.floor(Math.random() * 1e6),
+        text, reward, maxClaims, claimsLeft: maxClaims,
+        cid, cname, doneBy: [], ts: Date.now(),
+      };
+      tasks.set(task.id, task);
+      saveTasks();
+      json(res, 200, { ok: true, task });
+    });
+    return;
+  }
+  const claimM = url.pathname.match(/^\/tasks\/([^/]+)\/(claim|delete)$/);
+  if (claimM && req.method === "POST") {
+    readBody(req, (body) => {
+      const task = tasks.get(claimM[1]);
+      if (!task) return json(res, 404, { error: "gone" });
+      const cid = String(body.cid || "").slice(0, 40);
+      if (claimM[2] === "delete") {
+        if (task.cid !== cid) return json(res, 403, { error: "not yours" });
+        tasks.delete(task.id);
+        saveTasks();
+        return json(res, 200, { ok: true, refund: task.claimsLeft * task.reward });
+      }
+      // claim
+      if (task.claimsLeft <= 0 || task.doneBy.includes(cid)) {
+        return json(res, 200, { ok: false, error: "done" });
+      }
+      task.claimsLeft -= 1;
+      task.doneBy.push(cid);
+      saveTasks();
+      return json(res, 200, { ok: true, reward: task.reward });
+    });
     return;
   }
   // No dotfiles / no traversal: confine to ROOT.
