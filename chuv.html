@@ -6674,58 +6674,62 @@
         <polygon points="22,46 42,46 35,56 29,56" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
         <rect x="27" y="47" width="10" height="8" class="c-oil"/>
       </svg>`;
-    /* Personal Shop tabs: Shop pane first, About (resume) behind a button */
+    /* Personal Shop tabs: Tasks / Pumps / Resources. About removed. */
     (function setupShopTabs() {
       const sc = document.querySelector('.modal-scroll-content');
       if (!sc || sc.dataset.tabsDone) return;
-      const kids = [...sc.children];
-      const isShopNode = (el) => el.querySelector && (el.querySelector('#stallInvRow') || el.querySelector('#shopPumpsGrid'));
-      const isCta = (el) => el.classList && el.classList.contains('modal-cta-row');
-      // Tasks first: gather task titles + form + lists into their own section
+      sc.dataset.tabsDone = '1';
+      const topKids = [...sc.children];
+      const topLevel = (el) => {
+        let n = el;
+        while (n && n.parentNode !== sc) n = n.parentNode;
+        return (n && n.parentNode === sc) ? n : null;
+      };
+      // 1. Tasks section: move the INNER task nodes (titles, form, lists) out,
+      // wherever they are nested — never whole parent sections (keep doc order)
       const tasksSection = document.createElement('div');
       tasksSection.id = 'tasksSection';
       const taskBits = [];
-      kids.forEach(el => {
-        const t = el.textContent || '';
-        const isTaskTitle = el.classList && el.classList.contains('resume-section-title') &&
-          (t.includes('MY TASKS') || t.includes('TASKS AROUND') || t.includes('POST A TASK'));
-        const hasTaskUI = el.querySelector && (el.querySelector('#taskTextInput') || el.id === 'myTasksList' || el.id === 'remoteTasksList');
-        if (isTaskTitle || hasTaskUI) taskBits.push(el);
+      sc.querySelectorAll('.resume-section-title').forEach(t => {
+        const x = t.textContent || '';
+        if (x.includes('POST A TASK') || x.includes('TASKS AROUND') || x.includes('MY TASKS')) {
+          taskBits.push(t);
+        }
       });
-      let firstTaskParent = null;
-      if (taskBits.length) {
-        firstTaskParent = taskBits[0].parentNode;
-        taskBits.forEach(el => tasksSection.appendChild(el));
-        firstTaskParent.insertBefore(tasksSection, firstTaskParent.children[0]);
-      }
-      const shopNodes = [tasksSection, ...kids.filter(el => isShopNode(el) && el !== tasksSection)];
-      // Split shop pane: tasks / pumps / resources3769 + about
-      const stallSection = shopNodes.find(el => el.querySelector && el.querySelector('#stallInvRow')) || null;
-      const pumpsSection = shopNodes.find(el => el.querySelector && el.querySelector('#shopPumpsGrid')) || null;
-      const ctaNode = kids.find(isCta);
-      if (!shopNodes.length) return;
-      sc.dataset.tabsDone = '1';
+      ['taskTextInput', 'myTasksList', 'remoteTasksList'].forEach(id => {
+        const n = document.getElementById(id);
+        if (!n) return;
+        const host = n.closest('.form-group') || n;
+        if (!taskBits.includes(host)) taskBits.push(host);
+      });
+      taskBits.sort((a, b) => (a.compareDocumentPosition(b) & 4) ? -1 : 1);
+      taskBits.forEach(el => tasksSection.appendChild(el));
+      // 2. Stall + pumps sections (top-level widget roots)
+      const stallInv = document.getElementById('stallInvRow');
+      const pumpsGrid = document.getElementById('shopPumpsGrid');
+      const stallSection = stallInv ? topLevel(stallInv) : null;
+      const pumpsSection = pumpsGrid ? topLevel(pumpsGrid) : null;
+      // 3. Tab bar: 3 tabs, no About
       const tabBar = document.createElement('div');
       tabBar.className = 'shop-tabs';
       tabBar.innerHTML = `<button type="button" class="shop-tab-btn active" data-tab="tasks">📋 Tasks</button>`
         + `<button type="button" class="shop-tab-btn" data-tab="pumps">🔧 Pumps</button>`
-        + `<button type="button" class="shop-tab-btn" data-tab="resource">🪵 Resources</button>`
-        + `<button type="button" class="shop-tab-btn" data-tab="about">📌 About me</button>`;
+        + `<button type="button" class="shop-tab-btn" data-tab="resource">🪵 Resources</button>`;
+      sc.prepend(tabBar);
+      // 4. Everything else (resume + CTA) goes to a permanently hidden About pane
       const aboutPane = document.createElement('div');
       aboutPane.id = 'aboutPane';
       aboutPane.style.display = 'none';
-      aboutPane.style.flexDirection = 'column';
-      aboutPane.style.gap = '16px';
-      sc.prepend(tabBar);
-      kids.forEach(el => {
-        if (el === tabBar || shopNodes.includes(el)) return;
-        if (ctaNode && el === ctaNode) return;
+      [...sc.children].forEach(el => {
+        if (el === tabBar || el === tasksSection) return;
+        if (el === stallSection || el === pumpsSection) return;
         aboutPane.appendChild(el);
       });
-      shopNodes.forEach(el => sc.appendChild(el));
-      if (ctaNode) aboutPane.appendChild(ctaNode);
+      sc.appendChild(tasksSection);
+      if (stallSection) sc.appendChild(stallSection);
+      if (pumpsSection) sc.appendChild(pumpsSection);
       sc.appendChild(aboutPane);
-      const panes = { tasks: [tasksSection], pumps: [], resource: [], about: [aboutPane] };
+      const panes = { tasks: [tasksSection], pumps: [], resource: [] };
       if (pumpsSection) panes.pumps.push(pumpsSection);
       if (stallSection) panes.resource.push(stallSection);
       const applyTab = (tab) => {
@@ -6733,7 +6737,6 @@
         ['tasks', 'pumps', 'resource'].forEach(k => {
           (panes[k] || []).forEach(el => { el.style.display = (k === tab) ? '' : 'none'; });
         });
-        aboutPane.style.display = tab === 'about' ? 'flex' : 'none';
         sc.scrollTop = 0;
         if (tab === 'tasks' && typeof renderTasks === 'function') renderTasks();
         if (tab === 'pumps' && typeof renderShopPumps === 'function') renderShopPumps();
@@ -7733,11 +7736,14 @@
       updateResUI();
     }
     function renderStall() {
-      // Shop main text: admin only
+      // Shop main text: admin only — others don't even see the editor
       const adminMode = (typeof isAdmin !== 'undefined') && isAdmin;
       const si = document.getElementById('shopSignInput');
+      if (si) {
+        const fg = si.closest('.form-group');
+        if (fg) fg.style.display = adminMode ? '' : 'none';
+      }
       const sb = document.getElementById('btnSaveSign');
-      if (si) si.disabled = !adminMode;
       if (sb) sb.disabled = !adminMode;
       const inv = document.getElementById('stallInvRow');
       if (inv) inv.textContent = `📦 You: 🪵 ${woodCount} · ⛓️ ${ironCount} · 🛢️ ${oilCount} · 🪙 ${score}`;
