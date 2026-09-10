@@ -570,12 +570,11 @@
       100% { transform: translate(-14px, -6px) scale(0.4); opacity: 0; }
     }
 
-    /* Main billboard above the negotiation table */
+    /* Main billboard above the negotiation table (decor only, not clickable) */
     .main-banner {
       position: absolute;
       z-index: 6;
-      cursor: pointer;
-      pointer-events: auto;
+      pointer-events: none;
     }
     .main-banner img {
       width: 100%;
@@ -3116,7 +3115,7 @@
         <button type="button" class="btn-nav hidden" id="btnCraftPump" title="Build pump: 5 wood + 3 iron">🔧 Pump!</button>
         <button type="button" class="btn-nav" id="btnHitOil" title="Hit">⛏️ Hit!</button>
         <button type="button" class="btn-nav" id="btnToolToggle" title="Switch: pickaxe / paws">🐾</button>
-        <button type="button" class="btn-nav" id="btnPlaceShop" title="Place your stall here">🏪</button>
+        <button type="button" class="btn-nav" id="btnPlaceShop" title="Place your stall here: 100 wood + 100 oil">🏪</button>
         <button type="button" class="btn-nav" id="btnMarket" title="Resource market">🛒</button>
         <button type="button" class="btn-nav" id="btnMusic" title="Music on/off">🔊</button>
       </div>
@@ -4380,30 +4379,6 @@
         requestAnimationFrame(gameLoop);
       }
     }
-
-    // Tap on Main Banner -> walk there -> open shop (tasks live there)
-    const mainBanner = document.getElementById('mainBanner');
-    function handleBannerTap(e) {
-      if (e) e.stopPropagation();
-      if (!mainBanner) return;
-      if (typeof isCooking !== 'undefined' && isCooking) return;
-      targetX = mainBanner.offsetLeft + mainBanner.offsetWidth / 2;
-      targetY = mainBanner.offsetTop + mainBanner.offsetHeight + 10;
-      activeCallback = () => {
-        playCrunchSound();
-        if (modalShopOverlay) modalShopOverlay.classList.remove('hidden');
-        if (typeof renderShopPumps === 'function') renderShopPumps();
-        if (typeof renderStall === 'function') renderStall();
-        if (typeof renderTasks === 'function') renderTasks();
-      };
-      createTapMarker(targetX, targetY);
-      if (!isMoving) {
-        isMoving = true;
-        if (player) player.classList.add('walking');
-        requestAnimationFrame(gameLoop);
-      }
-    }
-    if (mainBanner) mainBanner.addEventListener('pointerdown', handleBannerTap);
 
     if (resumeShop) resumeShop.addEventListener('pointerdown', handleShopTap);
 
@@ -7712,6 +7687,16 @@
     const btnPlaceShop = document.getElementById('btnPlaceShop');
     if (btnPlaceShop) btnPlaceShop.addEventListener('click', (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
+      // Placing a stall costs 100 wood + 100 oil (nobody moves it for free)
+      if (woodCount < 100 || oilCount < 100) {
+        playBeep(200, 'sawtooth', 0.1);
+        showSpeechBubble('Need 100🪵 + 100🛢️ to place!', 2500);
+        return;
+      }
+      woodCount -= 100;
+      oilCount -= 100;
+      saveRes();
+      updateResUI();
       myShop.x = Math.round(Math.min(Math.max(posX, 30), MAP_W - 30));
       myShop.y = Math.round(Math.min(Math.max(posY, 60), MAP_H - 30));
       applyShopPos();
