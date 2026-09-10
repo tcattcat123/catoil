@@ -570,7 +570,20 @@
       100% { transform: translate(-14px, -6px) scale(0.4); opacity: 0; }
     }
 
-    /* Resource UI: craft button, oil tooltip, harvestable rocks */
+    /* Main billboard above the negotiation table */
+    .main-banner {
+      position: absolute;
+      z-index: 6;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .main-banner img {
+      width: 100%;
+      height: auto;
+      display: block;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4));
+    }
     .btn-nav.hidden {
       display: none;
     }
@@ -3269,6 +3282,11 @@
       </svg>
     </div>
 
+    <!-- MAIN BILLBOARD (above the table, on grass, slightly left) -->
+    <div class="map-decor main-banner" id="mainBanner" title="Tasks board" style="left:810px; top:860px; width:280px;">
+      <img src="mainbanner.png" alt="Complete tasks for cash!" />
+    </div>
+
     <!-- NEGOTIATION TABLE & CHAIRS 🤝 -->
     <div class="negotiation-table-item" id="negotiationTable" title="Negotiation table (click to sit!)">
       <div class="table-sign-floating">negotiation table</div>
@@ -4127,7 +4145,7 @@
     const gameMap = document.createElement('div');
     gameMap.id = 'map';
     world.prepend(gameMap);
-    world.querySelectorAll('.map-decor, .snow-drift, .ice-pond, .pixel-fish-item, .snow-tree, .negotiation-table-item, .snowy-palm-tree, .tiny-chick, .pixel-shop, .pixel-cat-player').forEach(el => gameMap.appendChild(el));
+    world.querySelectorAll('.map-decor, .snow-drift, .ice-pond, .pixel-fish-item, .snow-tree, .negotiation-table-item, .snowy-palm-tree, .tiny-chick, .pixel-shop, .pixel-cat-player, #mainBanner').forEach(el => gameMap.appendChild(el));
     const map = gameMap;
 
     // Explicit village layout in world coords (fountain plaza at 695,845)
@@ -4175,7 +4193,7 @@
 
     /* Isometric depth: cat walks BEHIND tall trees, in front when below them */
     const depthObjs = [];
-    document.querySelectorAll('.oak-tree,.snowy-palm-tree').forEach(el => depthObjs.push(el));
+    document.querySelectorAll('.oak-tree,.snowy-palm-tree,.main-banner').forEach(el => depthObjs.push(el));
     function updateDepth() {
       const feetY = posY + 8;
       for (const el of depthObjs) {
@@ -4362,6 +4380,30 @@
         requestAnimationFrame(gameLoop);
       }
     }
+
+    // Tap on Main Banner -> walk there -> open shop (tasks live there)
+    const mainBanner = document.getElementById('mainBanner');
+    function handleBannerTap(e) {
+      if (e) e.stopPropagation();
+      if (!mainBanner) return;
+      if (typeof isCooking !== 'undefined' && isCooking) return;
+      targetX = mainBanner.offsetLeft + mainBanner.offsetWidth / 2;
+      targetY = mainBanner.offsetTop + mainBanner.offsetHeight + 10;
+      activeCallback = () => {
+        playCrunchSound();
+        if (modalShopOverlay) modalShopOverlay.classList.remove('hidden');
+        if (typeof renderShopPumps === 'function') renderShopPumps();
+        if (typeof renderStall === 'function') renderStall();
+        if (typeof renderTasks === 'function') renderTasks();
+      };
+      createTapMarker(targetX, targetY);
+      if (!isMoving) {
+        isMoving = true;
+        if (player) player.classList.add('walking');
+        requestAnimationFrame(gameLoop);
+      }
+    }
+    if (mainBanner) mainBanner.addEventListener('pointerdown', handleBannerTap);
 
     if (resumeShop) resumeShop.addEventListener('pointerdown', handleShopTap);
 
