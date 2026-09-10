@@ -7312,7 +7312,7 @@
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
     })();
-    /* Asphalt platforms from s/asf.png: diamond path pieces + round plaza.
+    /* Asphalt platforms from s/asf.png, placed as designed (no old bands).
        Old grey stone-tex removed from the map. */
     function layAsphalt() {
       gameMap.querySelectorAll('.asf-piece').forEach(el => el.remove());
@@ -7338,14 +7338,17 @@
             el.style.backgroundSize = `${w}px ${h}px`;
             map.appendChild(el);
           };
-          const diamond = cut(10, 15, 320, 215);
-          const plaza = cut(10, 560, 460, 350);
-          add(plaza, 695, 845, 460, 350);
-          for (let x = 80; x < 1560; x += 190) add(diamond, x, 845, 320, 215);
-          for (let y = 80; y < 1800; y += 190) {
-            if (Math.abs(y - 845) < 300) continue;
-            add(diamond, 695, y, 320, 215);
-          }
+          // Round plaza under the fountain
+          add(cut(10, 560, 460, 350), 695, 845, 368, 280);
+          // Diamond pads under shop & table
+          const pad = cut(10, 15, 320, 215);
+          add(pad, 320, 445, 224, 150);
+          add(pad, 1080, 1135, 224, 150);
+          // Small slabs as decor in the field
+          const slab = cut(950, 880, 240, 200);
+          add(slab, 1900, 1100, 168, 140);
+          add(slab, 2500, 500, 168, 140);
+          add(slab, 2700, 1400, 168, 140);
         } catch (e) { /* keep grass on failure */ }
       };
       img.onerror = () => {};
