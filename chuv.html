@@ -72,6 +72,14 @@
       pointer-events: none;
       image-rendering: pixelated;
     }
+    /* Asphalt platforms from s/asf.png (transparency kept) */
+    .asf-piece {
+      position: absolute;
+      pointer-events: none;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background-repeat: no-repeat;
+    }
     /* Custom animated objects from map editor (PNG strip + JSON meta) */
     .custom-anim {
       position: absolute;
@@ -196,8 +204,8 @@
       width: 1560px;
       height: 150px;
       z-index: 2;
-      border-top: 3px solid #8f8f8f;
-      border-bottom: 3px solid #8f8f8f;
+      background: none;
+      border: none;
     }
     .road-v {
       top: 0;
@@ -205,8 +213,8 @@
       width: 170px;
       height: 100%;
       z-index: 2;
-      border-left: 3px solid #8f8f8f;
-      border-right: 3px solid #8f8f8f;
+      background: none;
+      border: none;
     }
     .stone-clearing {
       width: 30%;
@@ -3000,8 +3008,8 @@
   <div id="world">
 
     <!-- VILLAGE PLAZA DECOR: roads, clearings, fountain, lamps -->
-    <div class="map-decor stone-tex road-h"></div>
-    <div class="map-decor stone-tex road-v"></div>
+    <div class="map-decor road-h"></div>
+    <div class="map-decor road-v"></div>
     <div class="map-decor stone-tex stone-clearing clearing-tl"></div>
     <div class="map-decor stone-tex stone-clearing clearing-tr"></div>
     <div class="map-decor stone-tex stone-clearing clearing-bl"></div>
@@ -7304,6 +7312,46 @@
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
     })();
+    /* Asphalt platforms from s/asf.png: diamond path pieces + round plaza.
+       Old grey stone-tex removed from the map. */
+    function layAsphalt() {
+      gameMap.querySelectorAll('.asf-piece').forEach(el => el.remove());
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const cut = (x, y, w, h) => {
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+            return c.toDataURL('image/png');
+          };
+          const add = (url, cx, cy, w, h) => {
+            const el = document.createElement('div');
+            el.className = 'map-decor asf-piece';
+            el.style.left = `${Math.round(cx - w / 2)}px`;
+            el.style.top = `${Math.round(cy - h / 2)}px`;
+            el.style.width = `${w}px`;
+            el.style.height = `${h}px`;
+            el.style.zIndex = '2';
+            el.style.backgroundImage = `url("${url}")`;
+            el.style.backgroundSize = `${w}px ${h}px`;
+            map.appendChild(el);
+          };
+          const diamond = cut(10, 15, 320, 215);
+          const plaza = cut(10, 560, 460, 350);
+          add(plaza, 695, 845, 460, 350);
+          for (let x = 80; x < 1560; x += 190) add(diamond, x, 845, 320, 215);
+          for (let y = 80; y < 1800; y += 190) {
+            if (Math.abs(y - 845) < 300) continue;
+            add(diamond, 695, y, 320, 215);
+          }
+        } catch (e) { /* keep grass on failure */ }
+      };
+      img.onerror = () => {};
+      img.src = 's/asf.png';
+    }
+    layAsphalt();
     function applyMapData(M) {
       if (!M || typeof M !== 'object') return;
       if (M.type === 'IsometricMapContainer') {
@@ -7319,17 +7367,19 @@
         }
         if (Array.isArray(M.roads)) {
           gameMap.querySelectorAll('.road-h,.road-v').forEach(el => el.remove());
-          M.roads.forEach(r => {
+          M.roads.forEach((r, i) => {
             const d = document.createElement('div');
-            d.className = 'map-decor stone-tex';
+            d.className = 'map-decor ' + (i === 0 ? 'road-h' : 'road-v');
             d.style.left = r.x + 'px';
             d.style.top = r.y + 'px';
             d.style.width = r.w + 'px';
             d.style.height = r.h + 'px';
             d.style.zIndex = '2';
-            d.style.border = '3px solid #8f8f8f';
+            d.style.background = 'none';
+            d.style.border = 'none';
             gameMap.appendChild(d);
           });
+          if (typeof layAsphalt === 'function') layAsphalt();
         }
         const plaza = gameMap.querySelector('.plaza-center');
         if (plaza && M.fountain) {
