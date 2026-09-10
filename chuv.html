@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=VT323&family=Fira+Code:wght@600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <style>
     * {
@@ -2872,6 +2873,13 @@
     .stall-mini-btn.red {
       background: #ef4444;
     }
+    /* Big prominent task-post button */
+    #btnAddTask {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      margin-top: 2px;
+    }
     .stall-mini-btn:disabled {
       filter: grayscale(1);
       opacity: 0.5;
@@ -3415,7 +3423,8 @@
         <div class="gen-preview" id="genPreview"></div>
         <button type="button" class="gen-dice-btn" id="btnGenRandom" title="Random cat">🎲</button>
       </div>
-      <input type="text" id="genName" class="gen-name-input" maxlength="12" placeholder="Cat name..." autocomplete="off" />
+      <input type="text" id="genName" class="gen-name-input" maxlength="12" placeholder="Nickname..." autocomplete="off" />
+      <div class="gen-sub" id="authStatus">Offline mode — nickname is local</div>
       <div class="gen-group">
         <div class="gen-label">Fur</div>
         <div class="gen-row" id="genFurRow"></div>
@@ -3768,13 +3777,13 @@
           <div id="stallStockList"></div>
           <div class="resume-section-title" style="margin-top:10px;">🛍️ OTHER STALLS</div>
           <div id="remoteStallsList"><div class="context-note">No other stalls nearby yet.</div></div>
-          <div class="resume-section-title" style="margin-top:10px;">📋 MY TASKS</div>
+          <div class="resume-section-title" style="margin-top:10px;">📋 POST A TASK (fee 10🛢️)</div>
           <div class="form-group">
             <div style="display:flex; gap:6px;">
               <input type="text" id="taskTextInput" class="form-input" maxlength="80" placeholder="e.g. Follow on Twitter https://..." style="flex:1;" />
               <input type="number" id="taskRewardInput" class="form-input" min="1" value="5" title="Reward in oil" style="width:70px;" />
-              <button type="button" class="stall-mini-btn" id="btnAddTask">Add</button>
             </div>
+            <button type="button" class="stall-mini-btn" id="btnAddTask" style="margin-top:6px;">📢 POST TASK — 10🛢️ FEE</button>
           </div>
           <div id="myTasksList"></div>
           <div class="resume-section-title" style="margin-top:10px;">🌍 TASKS AROUND</div>
@@ -6136,13 +6145,31 @@
     applyLocalSkin();
 
     const btnEnterWorld = document.getElementById('btnEnterWorld');
-    if (btnEnterWorld) btnEnterWorld.addEventListener('click', () => {
+    if (btnEnterWorld) btnEnterWorld.addEventListener('click', async () => {
       catName = genNameInput ? genNameInput.value.trim().slice(0, 12) : '';
+      if (!catName) {
+        authStatus('Enter a nickname first!');
+        playBeep(200, 'sawtooth', 0.1);
+        return;
+      }
       // Admin login by nickname
       if (catName.trim().toLowerCase() === 'yv' && !isAdmin) {
         isAdmin = true;
         genSkin.fur = ADMIN_FUR;
         try { localStorage.setItem('user_role', 'admin'); } catch (e) {}
+      }
+      // Nickname login (Supabase) or offline mode
+      if (sbClient) {
+        authStatus('Checking nickname...');
+        const r = await supaLogin(catName);
+        if (!r.ok) {
+          authStatus('⚠️ ' + r.error);
+          playBeep(200, 'sawtooth', 0.12);
+          return;
+        }
+        authStatus(r.offline ? 'Offline mode — nickname is local' : `Registered as ${authedNick} ✅`);
+      } else {
+        authStatus('Offline mode — nickname is local');
       }
       try {
         localStorage.setItem('cat_skin', JSON.stringify(genSnapshot()));
@@ -6158,7 +6185,56 @@
       if (typeof broadcastTasks === 'function') broadcastTasks();
     });
 
-    /* ⛏️🪵 RESOURCES: wood, iron, oil + pump levels 1-5 */
+    /* 🔑 Supabase nickname-only accounts (no passwords).
+       1) supabase.com -> New project  2) SQL editor -> run supabase.sql
+       3) paste URL + anon key below. Empty = offline mode. */
+    const SUPABASE_URL = '';
+    const SUPABASE_KEY = '';
+    let sbClient = null;
+    let authedNick = '';
+    function initSupabase() {
+      if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+      try {
+        if (typeof supabase === 'undefined' || !supabase.createClient) return false;
+        sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        return true;
+      } catch (e) {
+        sbClient = null;
+        return false;
+      }
+    }
+    function authStatus(t) {
+      const el = document.getElementById('authStatus');
+      if (el) el.textContent = t;
+    }
+    // Nickname login: first claim wins. Same cid = re-login OK. Returns {ok, error}.
+    async function supaLogin(nick) {
+      nick = String(nick || '').trim().slice(0, 12);
+      if (!/^[A-Za-z0-9_А-Яа-яЁё-]{2,12}$/u.test(nick)) {
+        return { ok: false, error: 'Nickname: 2-12 letters/numbers' };
+      }
+      if (!sbClient) return { ok: true, offline: true };
+      const { data, error } = await sbClient.from('profiles').select('nickname,cid').eq('nickname', nick).maybeSingle();
+      if (error) return { ok: false, error: 'DB error' };
+      if (!data) {
+        const ins = await sbClient.from('profiles').insert({ nickname: nick, cid: clientUuid });
+        if (ins.error) return { ok: false, error: 'Taken, pick another' };
+        authedNick = nick;
+        return { ok: true };
+      }
+      if (data.cid === clientUuid) {
+        await sbClient.from('profiles').update({ last_seen: new Date().toISOString() }).eq('nickname', nick);
+        authedNick = nick;
+        return { ok: true };
+      }
+      return { ok: false, error: 'Nickname taken! Pick another' };
+    }
+    initSupabase();
+    setInterval(() => {
+      if (sbClient && authedNick) {
+        sbClient.from('profiles').update({ last_seen: new Date().toISOString() }).eq('nickname', authedNick);
+      }
+    }, 60000);
     let woodCount = 0, ironCount = 0, oilCount = 0;
     let ownedPumps = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     try {
@@ -6588,7 +6664,24 @@
       const kids = [...sc.children];
       const isShopNode = (el) => el.querySelector && (el.querySelector('#stallInvRow') || el.querySelector('#shopPumpsGrid'));
       const isCta = (el) => el.classList && el.classList.contains('modal-cta-row');
-      const shopNodes = kids.filter(isShopNode);
+      // Tasks first: gather task titles + form + lists into their own section
+      const tasksSection = document.createElement('div');
+      tasksSection.id = 'tasksSection';
+      const taskBits = [];
+      kids.forEach(el => {
+        const t = el.textContent || '';
+        const isTaskTitle = el.classList && el.classList.contains('resume-section-title') &&
+          (t.includes('MY TASKS') || t.includes('TASKS AROUND') || t.includes('POST A TASK'));
+        const hasTaskUI = el.querySelector && (el.querySelector('#taskTextInput') || el.id === 'myTasksList' || el.id === 'remoteTasksList');
+        if (isTaskTitle || hasTaskUI) taskBits.push(el);
+      });
+      let firstTaskParent = null;
+      if (taskBits.length) {
+        firstTaskParent = taskBits[0].parentNode;
+        taskBits.forEach(el => tasksSection.appendChild(el));
+        firstTaskParent.insertBefore(tasksSection, firstTaskParent.children[0]);
+      }
+      const shopNodes = [tasksSection, ...kids.filter(el => isShopNode(el) && el !== tasksSection)];
       const ctaNode = kids.find(isCta);
       if (!shopNodes.length) return;
       sc.dataset.tabsDone = '1';
@@ -7139,18 +7232,20 @@
       }
     }
     const btnAddTask = document.getElementById('btnAddTask');
+    // Posting 1 task costs 10 oil barrels (fee is burned) + reward escrow
+    const TASK_FEE = 10;
     if (btnAddTask) btnAddTask.addEventListener('click', (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
       const ti = document.getElementById('taskTextInput');
       const ri = document.getElementById('taskRewardInput');
       const text = (ti && ti.value.trim().slice(0, 80)) || '';
       const reward = Math.max(1, parseInt((ri && ri.value) || '0', 10) || 0);
-      if (!text || !(reward > 0) || oilCount < reward) {
+      if (!text || !(reward > 0) || oilCount < reward + TASK_FEE) {
         playBeep(200, 'sawtooth', 0.1);
-        if (!(oilCount >= reward)) showSpeechBubble('Not enough oil! 🛢️', 1800);
+        showSpeechBubble(`Need ${reward + TASK_FEE}🛢️ (reward + ${TASK_FEE} fee)!`, 2000);
         return;
       }
-      oilCount -= reward;
+      oilCount -= reward + TASK_FEE;
       saveRes();
       updateResUI();
       myTasks.push({ id: Date.now(), text, reward, doneBy: [] });
@@ -7312,13 +7407,25 @@
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
     })();
-    /* Oil derrick below the fountain (s/neft1.png, 4-frame strip, transparent) */
+    /* Oil derrick below the fountain (s/neft1.png, 4-frame strip, black keyed out) */
     (function atlasNeft() {
-      const FW = 128, FH = 512, FRAMES = 4;
+      const FW = 125, FH = 500, FRAMES = 4;
       const DW = 64, DH = 256;
       const img = new Image();
       img.onload = () => {
         try {
+          const c = document.createElement('canvas');
+          c.width = FW * FRAMES;
+          c.height = FH;
+          const x = c.getContext('2d', { willReadFrequently: true });
+          x.drawImage(img, 0, 0);
+          const d = x.getImageData(0, 0, c.width, c.height);
+          const p = d.data;
+          for (let i = 0; i < p.length; i += 4) {
+            if (p[i] < 24 && p[i + 1] < 24 && p[i + 2] < 24) p[i + 3] = 0;
+          }
+          x.putImageData(d, 0, 0);
+          const url = c.toDataURL('image/png');
           const el = document.createElement('div');
           el.className = 'map-decor neft-derrick';
           el.style.left = `${520 - DW / 2}px`;
@@ -7326,7 +7433,7 @@
           el.style.width = `${DW}px`;
           el.style.height = `${DH}px`;
           el.style.zIndex = '6';
-          el.style.backgroundImage = 'url("s/neft1.png")';
+          el.style.backgroundImage = `url("${url}")`;
           el.style.backgroundRepeat = 'no-repeat';
           el.style.backgroundSize = `${DW * FRAMES}px ${DH}px`;
           el.style.imageRendering = 'pixelated';
