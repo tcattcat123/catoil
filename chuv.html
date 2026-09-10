@@ -7283,15 +7283,23 @@
           x.putImageData(d, 0, 0);
           const url = c.toDataURL('image/png');
           host.innerHTML = '';
+          // Fit the strip into the 84px fountain box (keep aspect)
+          const k = 84 / sh;
+          const dw = Math.round(sw * k), dh = 84;
           const el = document.createElement('div');
           el.className = 'fountain-anim';
           el.style.backgroundImage = `url("${url}")`;
-          el.style.backgroundSize = `${sw * rects.length}px ${sh}px`;
+          el.style.backgroundSize = `${dw * rects.length}px ${dh}px`;
+          el.style.width = `${dw}px`;
+          el.style.height = `${dh}px`;
+          el.style.left = '50%';
+          el.style.top = '50%';
+          el.style.transform = 'translate(-50%, -50%)';
           host.appendChild(el);
           let f = 0;
           setInterval(() => {
             f = (f + 1) % rects.length;
-            el.style.backgroundPosition = `${-f * sw}px 0`;
+            el.style.backgroundPosition = `${-f * dw}px 0`;
           }, 350);
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
