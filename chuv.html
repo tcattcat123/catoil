@@ -186,11 +186,6 @@
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       pointer-events: none;
-      animation: fountSteps 1.05s steps(3) infinite;
-    }
-    @keyframes fountSteps {
-      from { background-position: 0 0; }
-      to { background-position: calc(var(--fw, 180px) * -1) 0; }
     }
     .plaza-grass-ring {
       display: none !important;
@@ -7288,40 +7283,24 @@
           x.putImageData(d, 0, 0);
           const url = c.toDataURL('image/png');
           host.innerHTML = '';
-          // Fit the strip into the 84px fountain box (keep aspect).
-          // Frames may differ by 1px (uneven strip) — round boundaries.
+          // Fit the strip into the 84px fountain box (keep aspect)
           const k = 84 / sh;
-          const bounds = [0];
-          for (let i = 1; i < rects.length; i++) bounds.push(Math.round((sw * i) * k));
-          bounds.push(Math.round(sw * rects.length * k));
-          const dw = bounds[1] - bounds[0];
+          const dw = Math.round(sw * k), dh = 84;
           const el = document.createElement('div');
           el.className = 'fountain-anim';
           el.style.backgroundImage = `url("${url}")`;
-          el.style.backgroundSize = `${bounds[bounds.length - 1]}px 84px`;
-          // Rebuild strip with even frames so steps() lands exactly
-          const c2 = document.createElement('canvas');
-          c2.width = dw * rects.length;
-          c2.height = 84;
-          const x2 = c2.getContext('2d');
-          x2.imageSmoothingEnabled = false;
-          const src = new Image();
-          src.onload = () => {
-            for (let i = 0; i < rects.length; i++) {
-              x2.drawImage(src, bounds[i], 0, bounds[i + 1] - bounds[i], 84, i * dw, 0, dw, 84);
-            }
-            el.style.backgroundImage = `url("${c2.toDataURL('image/png')}")`;
-            el.style.backgroundSize = `${dw * rects.length}px 84px`;
-            el.style.setProperty('--fw', `${dw * rects.length}px`);
-          };
-          src.src = url;
+          el.style.backgroundSize = `${dw * rects.length}px ${dh}px`;
           el.style.width = `${dw}px`;
-          el.style.height = `84px`;
+          el.style.height = `${dh}px`;
           el.style.left = '50%';
           el.style.top = '50%';
           el.style.transform = 'translate(-50%, -50%)';
-          el.style.setProperty('--fw', `${dw * rects.length}px`);
           host.appendChild(el);
+          let f = 0;
+          setInterval(() => {
+            f = (f + 1) % rects.length;
+            el.style.backgroundPosition = `${-f * dw}px 0`;
+          }, 350);
         } catch (e) { /* keep static SVG fallback */ }
       }).catch(() => { /* keep static SVG fallback */ });
     })();
